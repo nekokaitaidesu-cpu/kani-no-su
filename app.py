@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・パーフェクトライフ修正版", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクトライフ最終版", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -40,53 +40,45 @@ html_code = """
   /* 穴 */
   .hole {
     position: absolute;
-    top: 85%; /* 画面の下の方 */
+    top: 85%;
     left: 50%;
-    transform: translate(-50%, -50%); /* 中心合わせ */
-    width: 70px; /* 少し広くした */
+    transform: translate(-50%, -50%);
+    width: 70px;
     height: 20px;
     background-color: #4a3b2a;
     border-radius: 50%;
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
-    z-index: 10;
+    /* ★修正★ カニより手前に表示して、カニを隠す！ */
+    z-index: 20;
   }
 
-  /* カニステージ（穴モード時のマスク領域） */
-  .crab-stage {
+  /* カニが隠れるためのマスク領域（穴の下半分） */
+  .crab-mask {
     position: absolute;
-    top: 85%; /* 穴の位置に合わせる */
+    top: 85%; /* 穴の中心 */
     left: 50%;
     transform: translate(-50%, 0); /* 上端を穴の中心に合わせる */
     width: 80px;
-    height: 100px; /* 下方向に伸ばす */
-    overflow: hidden; /* この枠外（つまり穴の上）は表示、下に行くと隠れる...逆だ！
-       穴に入るときは「穴より下」に行きたい。
-       でも overflow: hidden は「枠の外」を消す。
-       なので、ステージを「穴の上側」に配置して、下に移動したら消えるようにする？
-       いや、今回は「マスク解除」方式を使ってるから、
-       シンプルに「穴の周辺」を隠すマスクとして配置するね。
-    */
-    transform: translate(-50%, -50%); /* 中心を穴に合わせる */
-    z-index: 11;
+    height: 100px; /* 下に伸ばす */
+    /* 初期状態は隠すモード */
+    overflow: hidden;
+    z-index: 10; /* 穴より後ろ */
     pointer-events: none;
-    /* background: rgba(255,0,0,0.2); デバッグ用：赤枠が見える */
+    /* background: rgba(255,0,0,0.2); デバッグ用 */
   }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* 初期位置 */
-    top: 150%; 
+    /* 初期位置：穴の奥底 */
+    top: 100px; 
     left: 50%;
     width: 50px;
     height: 40px;
-    
-    /* ★超重要修正★ 足元基準（Bottom Center）に変更！ 
-       これで top: 85% のとき、足が 85% のラインに来るよ！ */
+    /* 足元基準 */
     transform: translate(-50%, -100%);
-    
-    transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear;
-    z-index: 20;
+    transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear, transform 0.5s;
+    z-index: 15; /* マスクより前、穴より後ろ */
   }
 
   /* --- アクション用クラス --- */
@@ -96,6 +88,9 @@ html_code = """
   .crab-container.walking .leg.R1 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.R2 { animation: walk-leg 0.3s infinite alternate; }
+  /* ★追加★ きょろきょろ */
+  .crab-container.peeking { animation: peek-and-look 2s infinite alternate; }
+
 
   /* --- カニのパーツ --- */
   .body { position: absolute; bottom: 0; width: 50px; height: 33px; background-color: #ff6b6b; border-radius: 50% 50% 40% 40%; border: 2px solid #c0392b; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); }
@@ -123,6 +118,14 @@ html_code = """
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
   @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
   @keyframes walk-leg { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+  /* ★追加★ きょろきょろアニメーション */
+  @keyframes peek-and-look {
+    0% { transform: translate(-50%, -100%) rotate(0deg); }
+    25% { transform: translate(-50%, -100%) rotate(-5deg); }
+    50% { transform: translate(-50%, -100%) rotate(0deg); }
+    75% { transform: translate(-50%, -100%) rotate(5deg); }
+    100% { transform: translate(-50%, -100%) rotate(0deg); }
+  }
 </style>
 </head>
 <body>
@@ -138,7 +141,7 @@ html_code = """
 
   <div class="hole"></div>
     
-  <div id="stage" class="crab-stage">
+  <div id="mask" class="crab-mask">
     <div id="crab" class="crab-container">
       <div class="leg left L1"></div><div class="leg right R1"></div>
       <div class="leg left L2"></div><div class="leg right R2"></div>
@@ -152,22 +155,16 @@ html_code = """
 
 <script>
   const crab = document.getElementById('crab');
-  const stage = document.getElementById('stage');
+  const mask = document.getElementById('mask');
   
   let mode = 'HOLE';
   const HOLE_X = 50; // %
   const HOLE_Y = 85; // %
 
-  // ★座標修正（足元基準）★
-  // ステージは top:85% (穴の中心) にあり、height:100px。
-  // translate(-50%, -50%) しているので、ステージの上端は 85% - 50px、下端は 85% + 50px。
-  // 足元基準(translate -50%, -100%)のカニにとって：
-  // top: 50% (ステージ内) => 画面上の 85%。これが「穴の入り口」。
-  // top: 150% (ステージ内) => 画面上の 85% + 50px (下)。これで隠れる。
-  
-  const POS_HIDDEN_Y = '150%'; // ステージの下へ消える
-  const POS_PEEK_Y   = '80%';  // ちょい出し
-  const POS_GROUND_Y = '50%';  // 地上（穴のラインぴったり）
+  // マスク内での位置 (px)
+  const POS_HIDDEN_Y = '100px'; // 完全に隠れる
+  const POS_PEEK_Y   = '35px';  // 目だけ出す（きょろきょろ用）
+  const POS_ENTRANCE_Y = '0px';   // 穴の入り口（マスクの上端）
 
   setTimeout(decideNextAction, 1000);
 
@@ -177,16 +174,19 @@ html_code = """
     if (mode === 'HOLE') {
       const dice = Math.random();
       if (dice < 0.4) {
-        // キョロキョロ
+        // ★追加★ 目だけきょろきょろ
         crab.style.top = POS_PEEK_Y;
-        delay = 2000 + Math.random() * 1500;
-        setTimeout(() => { if(mode==='HOLE') crab.style.top = POS_HIDDEN_Y; }, delay - 500);
+        crab.classList.add('peeking'); // きょろきょろ開始
+        delay = 3000;
+        setTimeout(() => { 
+            crab.classList.remove('peeking'); // きょろきょろ終了
+            if(mode==='HOLE') crab.style.top = POS_HIDDEN_Y; 
+        }, 2500);
       } else if (dice < 0.7) {
         // 出てくる
-        crab.style.top = POS_GROUND_Y;
+        crab.style.top = POS_ENTRANCE_Y;
         setTimeout(() => {
-          stage.style.overflow = 'visible';
-          // 座標系切り替え：見た目は変わらず、基準が画面全体になる
+          mask.style.overflow = 'visible'; // マスク解除
           crab.style.top = `${HOLE_Y}%`;
           crab.style.left = `${HOLE_X}%`;
           mode = 'BEACH';
@@ -224,43 +224,38 @@ html_code = """
   // 全方向ランダム移動
   function moveRandom() {
     crab.classList.add('walking');
-    
-    // ★移動範囲の修正★
-    // 上の方（Y座標の小さい値）が出やすいように、そして画面端まで行くように調整
-    // 5% 〜 85% (穴より上) の範囲でランダム
     const targetX = 5 + Math.random() * 90; 
     const targetY = 5 + Math.random() * 80; 
-
     crab.style.left = `${targetX}%`;
     crab.style.top = `${targetY}%`;
-
     setTimeout(() => {
         crab.classList.remove('walking');
     }, 3000);
   }
 
-  // 帰宅アクション
+  // ★修正★ 帰宅アクション（穴の上から入る）
   function returnHome() {
     crab.classList.add('walking');
-    
-    // 足元基準にしたので、topにHOLE_Y(85%)を指定すれば、足がドンピシャで穴の中心に来る！
+    // 1. 穴の真上（入り口）まで歩く
     crab.style.left = `${HOLE_X}%`;
     crab.style.top = `${HOLE_Y}%`;
 
     setTimeout(() => {
       crab.classList.remove('walking');
       
-      // 座標系をステージ内に戻す
-      crab.style.left = '50%'; // ステージの左右中央
-      crab.style.top = POS_GROUND_Y; // ステージの上下中央（入り口）
+      // 2. 座標系をマスク内に戻す（見た目変わらず）
+      crab.style.left = '50%'; 
+      crab.style.top = POS_ENTRANCE_Y; 
       
-      stage.style.overflow = 'hidden'; 
+      // 3. マスクを有効化
+      mask.style.overflow = 'hidden'; 
       mode = 'HOLE';
       
+      // 4. 一呼吸おいて、穴の奥へ潜る
       setTimeout(() => {
-          crab.style.top = POS_HIDDEN_Y; // 潜る
+          crab.style.top = POS_HIDDEN_Y; 
           setTimeout(decideNextAction, 2000);
-      }, 100); 
+      }, 500); 
     }, 3000);
   }
 </script>
