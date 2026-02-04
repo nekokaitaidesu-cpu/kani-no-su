@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニと謎の生き物たち", layout="centered")
+st.set_page_config(page_title="カニと謎の生き物たち（ランダム方向）", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -39,10 +39,7 @@ html_code = """
 
   /* --- メインのカニ関連（そのまま維持） --- */
   .hole { position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); width: 60px; height: 18px; background-color: #4a3b2a; border-radius: 50%; box-shadow: inset 0 3px 6px rgba(0,0,0,0.6); z-index: 10; }
-  
-  /* ステージのz-indexを謎の生き物(15)より上げる */
   .crab-stage { position: absolute; bottom: 159px; left: 50%; transform: translateX(-50%); width: 80px; height: 100px; overflow: hidden; z-index: 16; pointer-events: none; }
-  
   .crab-container { position: absolute; top: 100px; left: 50%; width: 50px; height: 40px; margin-left: -25px; transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear; z-index: 20; }
   .crab-container.snipping .claw.left::after { animation: snip-left 0.2s infinite alternate; }
   .crab-container.snipping .claw.right::after { animation: snip-right 0.2s infinite alternate; }
@@ -77,6 +74,11 @@ html_code = """
     width: 40px;
     height: 35px;
     z-index: 15;
+    /* デフォルトは左向き */
+  }
+  /* ★追加★ 右向きに歩くためのクラス */
+  .hermit-container.walking-right {
+    transform: scaleX(-1); /* 左右反転 */
   }
   
   /* 生き物の体（共通） */
@@ -91,13 +93,11 @@ html_code = """
   
   /* アニメーション：足と体を動かす */
   .hermit-container.walking .hermit-leg { animation: hermit-walk 0.5s infinite alternate; }
-  /* ★修正★ 貝殻がなくなったので、体が揺れるように変更 */
   .hermit-container.walking .hermit-body { animation: hermit-bob 0.5s infinite alternate; }
 
   @keyframes hermit-walk { from { transform: rotate(-10deg); } to { transform: rotate(20deg); } }
   @keyframes hermit-bob { from { transform: translateY(0); } to { transform: translateY(-1px); } }
 
-  /* 貝殻のスタイル定義は削除したっち！ */
 
   /* 既存アニメーション */
   @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
@@ -176,16 +176,15 @@ html_code = """
   }
 
 
-  /* --- ★追加★ 謎の生き物ロジック（動的生成・複数管理） --- */
+  /* --- ★追加★ 謎の生き物ロジック（ランダム方向） --- */
   const beachScene = document.querySelector('.beach-scene');
-  let activeHermits = 0; // 現在の生き物数
-  const MAX_HERMITS = 5; // 最大出現数
+  let activeHermits = 0; 
+  const MAX_HERMITS = 5; 
 
-  // 謎の生き物ライフ開始
   setTimeout(startHermitLoop, 3000);
 
   function startHermitLoop() {
-    const nextCheckTime = 3000 + Math.random() * 4000; // 3〜7秒後
+    const nextCheckTime = 3000 + Math.random() * 4000; 
     if (activeHermits < MAX_HERMITS) {
         spawnHermit();
     }
@@ -197,7 +196,6 @@ html_code = """
     const hermit = document.createElement('div');
     hermit.classList.add('hermit-container');
     
-    // ★修正★ 貝殻の選択ロジックを削除し、中身だけを生成
     hermit.innerHTML = `
       <div class="hermit-body">
           <div class="hermit-eye left"></div><div class="hermit-eye right"></div>
@@ -208,14 +206,32 @@ html_code = """
 
     const spawnY = 10 + Math.random() * 70; 
     hermit.style.top = `${spawnY}%`;
-    hermit.style.left = '115%'; // 初期位置（右外）
 
+    // ★進行方向をランダムに決定（50%の確率）★
+    const startFromRight = Math.random() < 0.5;
+    let startLeft, endLeft;
+
+    if (startFromRight) {
+        // 右から左へ（デフォルトの向き）
+        startLeft = '115%';
+        endLeft = '-15%';
+    } else {
+        // 左から右へ（反転させる）
+        startLeft = '-15%';
+        endLeft = '115%';
+        hermit.classList.add('walking-right'); // 右向きクラス追加
+    }
+
+    // 初期位置設定
+    hermit.style.left = startLeft;
+
+    // 移動開始
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         hermit.classList.add('walking');
         const duration = 20 + Math.random() * 20;
         hermit.style.transition = `left ${duration}s linear`;
-        hermit.style.left = '-15%'; // 移動先（左外）
+        hermit.style.left = endLeft; // 移動先へ
       });
     });
 
