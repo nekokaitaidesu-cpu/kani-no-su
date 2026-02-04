@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニと謎の生き物（捕獲修正版）", layout="centered")
+st.set_page_config(page_title="カニと謎の生き物（捕獲完全版）", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -26,7 +26,7 @@ html_code = """
     height: 100vh;
     width: 100vw;
     touch-action: none; /* スクロール無効化 */
-    user-select: none; /* テキスト選択無効化 */
+    user-select: none; /* 選択無効化 */
     -webkit-user-select: none;
   }
 
@@ -76,7 +76,6 @@ html_code = """
     height: 35px;
     z-index: 15;
     cursor: grab;
-    /* タッチ操作の遅延をなくす */
     touch-action: none; 
   }
   .hermit-container:active {
@@ -84,10 +83,6 @@ html_code = """
   }
   /* 右向き */
   .hermit-container.walking-right {
-    transform: scaleX(-1);
-  }
-  /* 掴まれてる時の右向き（transformが上書きされないように） */
-  .hermit-container.struggling.walking-right {
     transform: scaleX(-1);
   }
   
@@ -108,7 +103,6 @@ html_code = """
   .hermit-container.struggling .hermit-leg {
     animation: hermit-panic 0.08s infinite alternate; 
   }
-  /* 掴まれてる時は体も震える */
   .hermit-container.struggling .hermit-body {
     animation: hermit-shake 0.08s infinite alternate;
   }
@@ -226,15 +220,12 @@ html_code = """
 
   // ドラッグ管理
   let draggedHermit = null;
-  let startX = 0;
-  let startY = 0;
-  let initialLeft = 0;
-  let initialTop = 0;
+  let shiftX = 0; // タップ位置と要素左上のズレ
+  let shiftY = 0;
 
   // グローバルイベントリスナー
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
-  // { passive: false } は preventDefault() を呼ぶために必須
   document.addEventListener('touchmove', onDragMove, {passive: false});
   document.addEventListener('touchend', onDragEnd);
 
@@ -292,9 +283,10 @@ html_code = """
 
     // 画面外削除
     hermit.addEventListener('transitionend', () => {
-        const rect = hermit.getBoundingClientRect();
-        // 捕まっている最中や、まだ画面内にいる時は削除しない（逃走中の判定用）
-        if (!hermit.isCaught) {
+        if (!hermit.isCaught && !hermit.isEscaping) {
+             removeHermit(hermit);
+        }
+        if (hermit.isEscaping) {
              removeHermit(hermit);
         }
     });
@@ -308,14 +300,13 @@ html_code = """
       }
   }
 
-  /* --- ドラッグ処理（ここを修正！） --- */
+  /* --- ドラッグ処理（シフト計算による吸着方式） --- */
 
   function onDragStart(e) {
-    // デフォルト動作（スクロール等）を無効化
     if(e.cancelable) e.preventDefault();
     
     const hermit = e.currentTarget;
-    if (hermit.isEscaping) return; // 逃走中は触れない
+    if (hermit.isEscaping) return;
 
     draggedHermit = hermit;
     draggedHermit.isCaught = true;
@@ -323,25 +314,24 @@ html_code = """
     // 1. 移動アニメーションを停止
     draggedHermit.style.transition = 'none';
 
-    // 2. 現在の見た目の位置(px)を取得して固定する
-    // これで「タップした瞬間に飛んでいく」のを防ぐ！
-    const rect = draggedHermit.getBoundingClientRect();
-    const parentRect = beachScene.getBoundingClientRect();
-    
-    // 親要素内での相対座標(px)に変換
-    initialLeft = rect.left - parentRect.left;
-    initialTop = rect.top - parentRect.top;
-    
-    draggedHermit.style.left = `${initialLeft}px`;
-    draggedHermit.style.top = `${initialTop}px`;
-
-    // 3. ドラッグ開始点の座標を記録
+    // 2. タップ位置の座標を取得
     const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-    startX = clientX;
-    startY = clientY;
 
-    // 4. 焦り演出
+    // 3. 要素の現在の画面上の位置(Rect)を取得
+    const rect = draggedHermit.getBoundingClientRect();
+
+    // 4. 「指の位置」と「要素の左上」のズレ(shift)を計算して保存
+    shiftX = clientX - rect.left;
+    shiftY = clientY - rect.top;
+
+    // 5. 要素を現在の見た目の位置に固定する（これがないと変な場所に飛ぶ）
+    // 親要素(beach-scene)に対する相対位置に変換してセット
+    const parentRect = beachScene.getBoundingClientRect();
+    draggedHermit.style.left = `${clientX - shiftX - parentRect.left}px`;
+    draggedHermit.style.top  = `${clientY - shiftY - parentRect.top}px`;
+
+    // 6. 焦り演出
     startPanic(draggedHermit);
   }
 
@@ -352,13 +342,15 @@ html_code = """
     const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
 
-    // 移動量を計算
-    const dx = clientX - startX;
-    const dy = clientY - startY;
+    // 親要素の位置
+    const parentRect = beachScene.getBoundingClientRect();
 
-    // 新しい位置をpxで適用（指に追従）
-    draggedHermit.style.left = `${initialLeft + dx}px`;
-    draggedHermit.style.top = `${initialTop + dy}px`;
+    // 新しい位置 = 現在の指の位置 - 最初のズレ - 親要素の位置
+    const newLeft = clientX - shiftX - parentRect.left;
+    const newTop  = clientY - shiftY - parentRect.top;
+
+    draggedHermit.style.left = `${newLeft}px`;
+    draggedHermit.style.top  = `${newTop}px`;
   }
 
   function onDragEnd(e) {
@@ -375,7 +367,7 @@ html_code = """
   function startPanic(hermit) {
     hermit.classList.remove('walking');
     hermit.classList.add('struggling'); 
-    hermit.sweatInterval = setInterval(() => { createSweat(hermit); }, 150); // 汗の間隔を少し早く
+    hermit.sweatInterval = setInterval(() => { createSweat(hermit); }, 150); 
   }
 
   function stopPanic(hermit) {
@@ -398,13 +390,12 @@ html_code = """
     hermit.isEscaping = true;
     hermit.classList.add('running'); 
 
-    // 現在位置(px)を取得
+    // 現在位置(px)から一番近い壁へ逃げる
     const currentLeft = parseFloat(hermit.style.left);
     const parentWidth = beachScene.clientWidth;
     
-    // 左右どちらに近いか判定
     let targetLeft;
-    // 画面中央より左なら左(-50px)へ、右なら右(width+50px)へ
+    // 画面中央より左なら左(-100px)へ、右なら右(width+100px)へ
     if (currentLeft < parentWidth / 2) {
         targetLeft = -100;
         hermit.classList.remove('walking-right'); // 左向き
