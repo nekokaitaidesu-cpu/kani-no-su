@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・パーフェクトライフ", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクトライフ修正版", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -37,48 +37,53 @@ html_code = """
     max-height: 932px;
   }
 
-  /* 穴（中心基準） */
+  /* 穴 */
   .hole {
     position: absolute;
-    top: 85%;
+    top: 85%; /* 画面の下の方 */
     left: 50%;
-    transform: translate(-50%, -50%);
-    width: 60px;
-    height: 18px;
+    transform: translate(-50%, -50%); /* 中心合わせ */
+    width: 70px; /* 少し広くした */
+    height: 20px;
     background-color: #4a3b2a;
     border-radius: 50%;
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
     z-index: 10;
   }
 
-  /* カニステージ（マスク用） */
+  /* カニステージ（穴モード時のマスク領域） */
   .crab-stage {
     position: absolute;
-    top: 85%;
+    top: 85%; /* 穴の位置に合わせる */
     left: 50%;
-    transform: translate(-50%, -50%); /* ここも中心基準 */
+    transform: translate(-50%, 0); /* 上端を穴の中心に合わせる */
     width: 80px;
-    height: 100px; /* 少し縦長にして隠れるスペース確保 */
-    overflow: hidden;
+    height: 100px; /* 下方向に伸ばす */
+    overflow: hidden; /* この枠外（つまり穴の上）は表示、下に行くと隠れる...逆だ！
+       穴に入るときは「穴より下」に行きたい。
+       でも overflow: hidden は「枠の外」を消す。
+       なので、ステージを「穴の上側」に配置して、下に移動したら消えるようにする？
+       いや、今回は「マスク解除」方式を使ってるから、
+       シンプルに「穴の周辺」を隠すマスクとして配置するね。
+    */
+    transform: translate(-50%, -50%); /* 中心を穴に合わせる */
     z-index: 11;
     pointer-events: none;
-    /* border: 1px solid rgba(0,0,0,0.1); デバッグ用 */
+    /* background: rgba(255,0,0,0.2); デバッグ用：赤枠が見える */
   }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* ★修正★ 初期位置（隠れてる状態） */
+    /* 初期位置 */
     top: 150%; 
     left: 50%;
     width: 50px;
     height: 40px;
     
-    /* ★超重要修正★ 
-       これで座標(top, left)が「カニの中心」になる！
-       穴とのズレはこれで解消するはずカニ！ 
-    */
-    transform: translate(-50%, -50%);
+    /* ★超重要修正★ 足元基準（Bottom Center）に変更！ 
+       これで top: 85% のとき、足が 85% のラインに来るよ！ */
+    transform: translate(-50%, -100%);
     
     transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear;
     z-index: 20;
@@ -87,8 +92,6 @@ html_code = """
   /* --- アクション用クラス --- */
   .crab-container.snipping .claw.left::after { animation: snip-left 0.2s infinite alternate; }
   .crab-container.snipping .claw.right::after { animation: snip-right 0.2s infinite alternate; }
-  
-  /* 歩き：足パタパタ */
   .crab-container.walking .leg.L1 { animation: walk-leg 0.3s infinite alternate; }
   .crab-container.walking .leg.R1 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
@@ -155,12 +158,16 @@ html_code = """
   const HOLE_X = 50; // %
   const HOLE_Y = 85; // %
 
-  // ★座標修正★
-  // ステージ内での位置も「中心基準」で考えるように数値を調整したっち。
-  // ステージは高さ100px。top:50%が中央。
-  const POS_HIDDEN_Y = '150%'; // 完全に下へ隠れる
-  const POS_PEEK_Y   = '80%';  // チラ見え
-  const POS_GROUND_Y = '50%';  // 穴の出口（ステージの中央＝画面の85%の位置）
+  // ★座標修正（足元基準）★
+  // ステージは top:85% (穴の中心) にあり、height:100px。
+  // translate(-50%, -50%) しているので、ステージの上端は 85% - 50px、下端は 85% + 50px。
+  // 足元基準(translate -50%, -100%)のカニにとって：
+  // top: 50% (ステージ内) => 画面上の 85%。これが「穴の入り口」。
+  // top: 150% (ステージ内) => 画面上の 85% + 50px (下)。これで隠れる。
+  
+  const POS_HIDDEN_Y = '150%'; // ステージの下へ消える
+  const POS_PEEK_Y   = '80%';  // ちょい出し
+  const POS_GROUND_Y = '50%';  // 地上（穴のラインぴったり）
 
   setTimeout(decideNextAction, 1000);
 
@@ -179,7 +186,7 @@ html_code = """
         crab.style.top = POS_GROUND_Y;
         setTimeout(() => {
           stage.style.overflow = 'visible';
-          // 座標系切り替え：この瞬間、見た目の位置は変わらないはず
+          // 座標系切り替え：見た目は変わらず、基準が画面全体になる
           crab.style.top = `${HOLE_Y}%`;
           crab.style.left = `${HOLE_X}%`;
           mode = 'BEACH';
@@ -218,11 +225,11 @@ html_code = """
   function moveRandom() {
     crab.classList.add('walking');
     
-    // ★修正★
-    // 範囲を少し広げて、特に上方向(Y=0近く)へ行きやすくしたっち。
-    // スマホの上部はタイトルバー等があるかもだけど、2%まで攻める！
-    const targetX = 5 + Math.random() * 90; // 5% ~ 95%
-    const targetY = 2 + Math.random() * 85; // 2% ~ 87% (穴より上ならどこでも)
+    // ★移動範囲の修正★
+    // 上の方（Y座標の小さい値）が出やすいように、そして画面端まで行くように調整
+    // 5% 〜 85% (穴より上) の範囲でランダム
+    const targetX = 5 + Math.random() * 90; 
+    const targetY = 5 + Math.random() * 80; 
 
     crab.style.left = `${targetX}%`;
     crab.style.top = `${targetY}%`;
@@ -235,17 +242,17 @@ html_code = """
   // 帰宅アクション
   function returnHome() {
     crab.classList.add('walking');
-    // まず穴の真上（85%）に戻る
-    // translate(-50%, -50%)のおかげで、これでドンピシャの位置に来るはず！
+    
+    // 足元基準にしたので、topにHOLE_Y(85%)を指定すれば、足がドンピシャで穴の中心に来る！
     crab.style.left = `${HOLE_X}%`;
     crab.style.top = `${HOLE_Y}%`;
 
     setTimeout(() => {
       crab.classList.remove('walking');
       
-      // 座標切り替え（見た目の変化なし）
-      crab.style.left = '50%'; // ステージ内の左右中央
-      crab.style.top = POS_GROUND_Y; // ステージ内の上下中央
+      // 座標系をステージ内に戻す
+      crab.style.left = '50%'; // ステージの左右中央
+      crab.style.top = POS_GROUND_Y; // ステージの上下中央（入り口）
       
       stage.style.overflow = 'hidden'; 
       mode = 'HOLE';
