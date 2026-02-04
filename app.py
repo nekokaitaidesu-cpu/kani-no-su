@@ -1,12 +1,12 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ページ設定
-st.set_page_config(page_title="ちびカニ・ピークアブー", layout="centered")
+# ページ設定（ワイドモードにして広々と！）
+st.set_page_config(page_title="カニカニ・ビーチ", layout="wide")
 
-st.title("🦀 ちびカニさんが…ぴょこん！")
-st.write("小さくなったカニさんが、穴からこっそり様子をうかがってるっち🍄")
-st.write("（じーっと見てると、出てきてチョキチョキするよ！）")
+st.title("🏖️ 砂浜にカニが一匹…")
+st.write("広～い砂浜になったっち！貝殻も落ちてるね🐚")
+st.write("（カニさんは相変わらず穴の中に隠れてるみたい…じっと見てみてね🍄）")
 
 # CSSアートとアニメーションを含んだHTML
 html_code = """
@@ -15,28 +15,43 @@ html_code = """
 <head>
 <style>
   body {
-    background-color: #f0f2f6;
+    margin: 0;
+    overflow: hidden;
+    background-color: #f6d7b0; /* 砂の色 */
+    /* 砂の粒々感を出すためのノイズ */
+    background-image: 
+      radial-gradient(circle at 50% 50%, #e6c288 1px, transparent 1px),
+      radial-gradient(circle at 20% 80%, #dcb 1px, transparent 1px);
+    background-size: 20px 20px, 30px 30px;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 150px; /* 全体の高さを小さく調整 */
-    margin: 0;
-    overflow: hidden;
+    height: 400px; /* 表示エリアの高さ */
   }
 
-  /* 描画エリア */
-  .scene {
+  /* ★広いフィールドの設定★
+     全体を大きく作って、transform: scale() でキュッと縮小して表示する作戦だっち！
+     こうすると、パーツの配置は大きな座標で考えられるから楽なんだっち。
+  */
+  .beach-scene {
     position: relative;
+    width: 1000px; /* 横に広ーく！ */
+    height: 400px;
+    transform: scale(0.5); /* 全体を0.5倍（小さめ）で表示 */
+    transform-origin: center center;
+  }
+
+  /* --- ここからカニ＆穴セット（中央配置） --- */
+  .crab-home {
+    position: absolute;
+    bottom: 50px;
+    left: 50%;
+    transform: translateX(-50%);
     width: 300px;
     height: 300px;
-    /* ★ここが魔法の呪文！★ */
-    /* 全体を約1/3のサイズに縮小するだっち */
-    transform: scale(0.333);
-    /* 縮小の中心点を真ん中の下の方に合わせる */
-    transform-origin: center 70%;
   }
 
-  /* 穴（黒い背景） */
+  /* 穴 */
   .hole {
     position: absolute;
     bottom: 80px;
@@ -44,13 +59,13 @@ html_code = """
     transform: translateX(-50%);
     width: 140px;
     height: 40px;
-    background-color: #333;
+    background-color: #4a3b2a; /* 砂浜に合わせて少し茶色っぽく */
     border-radius: 50%;
-    box-shadow: inset 0 5px 10px rgba(0,0,0,0.5);
-    z-index: 1;
+    box-shadow: inset 0 5px 10px rgba(0,0,0,0.6);
+    z-index: 10;
   }
 
-  /* カニさんのステージ（この枠より下に行くと消える） */
+  /* カニさんが出入りするステージ（マスク用） */
   .crab-stage {
     position: absolute;
     bottom: 100px;
@@ -58,8 +73,8 @@ html_code = """
     transform: translateX(-50%);
     width: 200px;
     height: 300px;
-    overflow: hidden;
-    z-index: 2;
+    overflow: hidden; /* 下にはみ出たら消える */
+    z-index: 11;
     pointer-events: none;
   }
 
@@ -71,11 +86,10 @@ html_code = """
     transform: translateX(-50%);
     width: 120px;
     height: 100px;
-    /* アニメーション設定 */
     animation: peekaboo 8s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
   }
 
-  /* カニの体 */
+  /* カニのパーツ（前回と同じ） */
   .body {
     position: absolute;
     bottom: 0;
@@ -86,117 +100,75 @@ html_code = """
     border: 3px solid #c0392b;
     box-shadow: inset -5px -5px 10px rgba(0,0,0,0.1);
   }
-
-  /* 目（茎の部分） */
-  .eye-stalk {
-    position: absolute;
-    top: -20px;
-    width: 6px;
-    height: 25px;
-    background-color: #c0392b;
-  }
+  .eye-stalk { position: absolute; top: -20px; width: 6px; height: 25px; background-color: #c0392b; }
   .eye-stalk.left { left: 30px; transform: rotate(-15deg); }
   .eye-stalk.right { right: 30px; transform: rotate(15deg); }
+  .eye { position: absolute; top: -25px; width: 16px; height: 16px; background-color: white; border-radius: 50%; border: 2px solid #c0392b; }
+  .eye::after { content: ''; position: absolute; top: 4px; left: 4px; width: 6px; height: 6px; background-color: black; border-radius: 50%; animation: blink 4s infinite; }
+  .eye.left { left: 24px; } .eye.right { right: 24px; }
+  .claw { position: absolute; top: 10px; width: 35px; height: 25px; border: 3px solid #c0392b; background-color: #ff6b6b; border-radius: 50% 50% 10% 10%; transform-origin: bottom center; }
+  .claw.left { left: -25px; transform: rotate(-30deg); }
+  .claw.left::after { content: ''; position: absolute; top: -15px; left: 0; width: 20px; height: 25px; background-color: #ff6b6b; border: 3px solid #c0392b; border-radius: 50% 10% 0 0; transform: rotate(-20deg); transform-origin: bottom right; animation: snip-left 0.5s infinite alternate; }
+  .claw.right { right: -25px; transform: rotate(30deg); }
+  .claw.right::after { content: ''; position: absolute; top: -15px; right: 0; width: 20px; height: 25px; background-color: #ff6b6b; border: 3px solid #c0392b; border-radius: 10% 50% 0 0; transform: rotate(20deg); transform-origin: bottom left; animation: snip-right 0.5s infinite alternate; }
+  .leg { position: absolute; bottom: 10px; width: 20px; height: 5px; background-color: #c0392b; border-radius: 5px; }
+  .leg.left { left: -10px; transform: rotate(-20deg); } .leg.right { right: -10px; transform: rotate(20deg); }
 
-  /* 目（玉の部分） */
-  .eye {
+
+  /* --- 貝殻（CSSアート） --- */
+  .shell {
     position: absolute;
-    top: -25px;
-    width: 16px;
-    height: 16px;
-    background-color: white;
-    border-radius: 50%;
-    border: 2px solid #c0392b;
+    width: 40px;
+    height: 35px;
+    background: repeating-linear-gradient(
+      90deg, 
+      #fff0f5 0px, 
+      #fff0f5 4px, 
+      #ffc1e3 5px, 
+      #ffc1e3 6px
+    );
+    border-radius: 50% 50% 10% 10%; /* 扇形 */
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
   }
-  .eye::after { /* 黒目 */
+  /* 貝殻の根本のちょぼ */
+  .shell::after {
     content: '';
     position: absolute;
-    top: 4px;
-    left: 4px;
-    width: 6px;
+    bottom: -5px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 10px;
     height: 6px;
-    background-color: black;
+    background-color: #ffc1e3;
+    border-radius: 2px;
+  }
+
+  /* 白い巻貝タイプ */
+  .shell-spiral {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 40px solid #fff;
     border-radius: 50%;
-    animation: blink 4s infinite;
+    transform: rotate(45deg);
+    filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
   }
-  .eye.left { left: 24px; }
-  .eye.right { right: 24px; }
-
-  /* ハサミ */
-  .claw {
-    position: absolute;
-    top: 10px;
-    width: 35px;
-    height: 25px;
-    border: 3px solid #c0392b;
-    background-color: #ff6b6b;
-    border-radius: 50% 50% 10% 10%;
-    transform-origin: bottom center;
-  }
-  
-  /* 左ハサミ */
-  .claw.left {
-    left: -25px;
-    transform: rotate(-30deg);
-  }
-  .claw.left::after {
+  .shell-spiral::before {
     content: '';
     position: absolute;
-    top: -15px;
-    left: 0;
+    top: 20px;
+    left: -10px;
     width: 20px;
-    height: 25px;
-    background-color: #ff6b6b;
-    border: 3px solid #c0392b;
-    border-radius: 50% 10% 0 0;
-    transform: rotate(-20deg);
-    transform-origin: bottom right;
-    animation: snip-left 0.5s infinite alternate;
+    height: 20px;
+    background-color: #eee;
+    border-radius: 50%;
   }
 
-  /* 右ハサミ */
-  .claw.right {
-    right: -25px;
-    transform: rotate(30deg);
-  }
-  .claw.right::after {
-    content: '';
-    position: absolute;
-    top: -15px;
-    right: 0;
-    width: 20px;
-    height: 25px;
-    background-color: #ff6b6b;
-    border: 3px solid #c0392b;
-    border-radius: 10% 50% 0 0;
-    transform: rotate(20deg);
-    transform-origin: bottom left;
-    animation: snip-right 0.5s infinite alternate;
-  }
-
-  /* 足 */
-  .leg {
-    position: absolute;
-    bottom: 10px;
-    width: 20px;
-    height: 5px;
-    background-color: #c0392b;
-    border-radius: 5px;
-  }
-  .leg.left { left: -10px; transform: rotate(-20deg); }
-  .leg.right { right: -10px; transform: rotate(20deg); }
-
-
-  /* --- アニメーション定義 --- */
+  /* --- アニメーション --- */
   @keyframes peekaboo {
-    0% { top: 100%; }
-    10% { top: 100%; }
-    30% { top: 10px; }
-    35% { top: 20px; }
-    40% { top: 15px; }
-    65% { top: 15px; }
-    75% { top: 100%; }
-    100% { top: 100%; }
+    0% { top: 100%; } 10% { top: 100%; } 30% { top: 10px; } 35% { top: 20px; } 40% { top: 15px; } 65% { top: 15px; } 75% { top: 100%; } 100% { top: 100%; }
   }
   @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
@@ -206,28 +178,38 @@ html_code = """
 </head>
 <body>
 
-<div class="scene">
-  <div class="hole"></div>
-  <div class="crab-stage">
-    <div class="crab-container">
-      <div class="leg left" style="bottom: 20px; left: -15px;"></div>
-      <div class="leg right" style="bottom: 20px; right: -15px;"></div>
-      <div class="leg left"></div>
-      <div class="leg right"></div>
-      <div class="claw left"></div>
-      <div class="claw right"></div>
-      <div class="body"></div>
-      <div class="eye-stalk left"></div>
-      <div class="eye-stalk right"></div>
-      <div class="eye left"></div>
-      <div class="eye right"></div>
+<div class="beach-scene">
+  
+  <div class="shell" style="top: 300px; left: 200px; transform: rotate(-20deg);"></div>
+  <div class="shell" style="top: 150px; left: 800px; transform: rotate(10deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 4px, #aee 5px, #aee 6px);"></div>
+  <div class="shell-spiral" style="top: 250px; left: 700px; transform: rotate(60deg);"></div>
+  <div class="shell-spiral" style="top: 100px; left: 150px; transform: rotate(-30deg);"></div>
+  <div class="shell" style="top: 350px; left: 600px; transform: rotate(180deg); opacity: 0.8;"></div>
+
+  <div class="crab-home">
+    <div class="hole"></div>
+    <div class="crab-stage">
+      <div class="crab-container">
+        <div class="leg left" style="bottom: 20px; left: -15px;"></div>
+        <div class="leg right" style="bottom: 20px; right: -15px;"></div>
+        <div class="leg left"></div>
+        <div class="leg right"></div>
+        <div class="claw left"></div>
+        <div class="claw right"></div>
+        <div class="body"></div>
+        <div class="eye-stalk left"></div>
+        <div class="eye-stalk right"></div>
+        <div class="eye left"></div>
+        <div class="eye right"></div>
+      </div>
     </div>
   </div>
+
 </div>
 
 </body>
 </html>
 """
 
-# HTMLを描画 (高さを小さく調整)
-components.html(html_code, height=170)
+# HTMLを描画
+components.html(html_code, height=450)
