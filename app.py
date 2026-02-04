@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・パーフェクトワールド", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクト複数穴ライフ", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -51,35 +51,34 @@ html_code = """
   /* 各穴の位置 */
   #hole1 { top: 60%; left: 25%; } /* 左上 */
   #hole2 { top: 40%; left: 75%; } /* 右上 */
-  #hole3 { bottom: 150px; left: 50%; } /* 下中央（真ん中の穴：絶対維持） */
+  #hole3 { bottom: 150px; left: 50%; } /* 下中央（完璧な基準！） */
 
   /* --- カニステージ（マスク用・共通スタイル） --- */
   .crab-stage {
     position: absolute;
+    transform: translateX(-50%);
     width: 80px;
     height: 100px;
-    overflow: hidden; /* 初期状態はマスク有効 */
+    overflow: hidden;
     z-index: 11;
     pointer-events: none;
-    /* background: rgba(255,0,0,0.2); デバッグ用 */
   }
-  /* 各ステージの位置 */
-  /* 左右の穴は、穴の中心座標とステージの中心を合わせることで位置ズレを解消 */
-  #stage1 { top: 60%; left: 25%; transform: translate(-50%, -50%); }
-  #stage2 { top: 40%; left: 75%; transform: translate(-50%, -50%); }
-  /* 真ん中のステージは元の設定を完全に維持 */
-  #stage3 { bottom: 159px; left: 50%; transform: translateX(-50%); }
+  /* ★修正ポイント★ 各ステージの位置
+     穴より少し「上」にステージを配置する。
+     top基準の場合は引く(-)、bottom基準の場合は足す(+)のが正解！
+  */
+  #stage1 { top: calc(60% - 9px); left: 25%; } /* 修正！ +9px を -9px に */
+  #stage2 { top: calc(40% - 9px); left: 75%; } /* 修正！ +9px を -9px に */
+  #stage3 { bottom: 159px; left: 50%; } /* 完璧な基準（150px + 9px）そのまま */
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* ステージ内での初期位置（POS_HIDDEN_Yと同じ） */
-    top: 100px; 
+    top: 100px; /* 初期位置 */
     left: 50%;
     width: 50px;
     height: 40px;
     margin-left: -25px;
-    /* transitionはJSで制御 */
     z-index: 20;
   }
 
@@ -91,7 +90,7 @@ html_code = """
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.R2 { animation: walk-leg 0.3s infinite alternate; }
 
-  /* --- カニのパーツ（変更なし） --- */
+  /* --- カニのパーツ --- */
   .body { position: absolute; bottom: 0; width: 50px; height: 33px; background-color: #ff6b6b; border-radius: 50% 50% 40% 40%; border: 2px solid #c0392b; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); }
   .eye-stalk { position: absolute; top: -8px; width: 3px; height: 10px; background-color: #c0392b; transition: transform 0.3s; }
   .eye-stalk.left { left: 12px; transform: rotate(-15deg); } .eye-stalk.right { right: 12px; transform: rotate(15deg); }
@@ -106,13 +105,13 @@ html_code = """
   .leg.L1 { left: -8px; transform: rotate(-20deg); } .leg.L2 { left: -3px; bottom: 2px; transform: rotate(-10deg); }
   .leg.R1 { right: -8px; transform: rotate(20deg); } .leg.R2 { right: -3px; bottom: 2px; transform: rotate(10deg); }
 
-  /* --- 貝殻（変更なし） --- */
+  /* --- 貝殻 --- */
   .shell { position: absolute; width: 25px; height: 20px; background: repeating-linear-gradient(90deg, #fff0f5 0px, #fff0f5 2px, #ffc1e3 3px, #ffc1e3 4px); border-radius: 50% 50% 10% 10%; box-shadow: 1px 1px 3px rgba(0,0,0,0.2); z-index: 5; }
   .shell::after { content: ''; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); width: 6px; height: 4px; background-color: #ffc1e3; border-radius: 2px; }
   .shell-spiral { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 25px solid #fff; border-radius: 50%; transform: rotate(45deg); filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2)); z-index: 5; }
   .shell-spiral::before { content: ''; position: absolute; top: 12px; left: -6px; width: 12px; height: 12px; background-color: #eee; border-radius: 50%; }
 
-  /* --- アニメーション定義（変更なし） --- */
+  /* --- アニメーション定義 --- */
   @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
   @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
@@ -151,27 +150,25 @@ html_code = """
 <script>
   const crab = document.getElementById('crab');
   
-  // 穴のデータ（位置%と対応するステージID）
-  // 左右の穴はステージの中心座標と一致させる
-  // 真ん中の穴(id:3)のy座標は、bottom:150pxのおおよその位置
+  // 穴のデータ
   const holes = [
-    { id: 1, x: 25, y: 60, stageId: 'stage1' }, 
-    { id: 2, x: 75, y: 40, stageId: 'stage2' }, 
-    { id: 3, x: 50, y: 85, stageId: 'stage3' } 
+    { id: 1, x: 25, y: 60, stageId: 'stage1' },
+    { id: 2, x: 75, y: 40, stageId: 'stage2' },
+    { id: 3, x: 50, y: 85, stageId: 'stage3' }
   ];
-  let currentHoleId = 3; // 初期は真ん中の穴
+  let currentHoleId = 3;
 
   let mode = 'HOLE';
 
-  // 穴の中での相対位置 (px) - 維持する
+  // 穴の中での相対位置 (px)
   const POS_HIDDEN_Y = '100px'; 
   const POS_PEEK_Y   = '60px'; 
   const POS_GROUND_Y = '20px';  
 
   // 通常の移動速度
   const SPEED_NORMAL = 'top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear';
-  // 穴への移動速度（ゆっくり）
-  const SPEED_SLOW = 'top 8s linear, left 8s linear';
+  // ★修正★ 穴への移動速度（ゆっくりだが、間延びしない程度に調整）
+  const SPEED_SLOW = 'top 5s linear, left 5s linear'; // 8s -> 5s に変更
 
   // 初期設定
   crab.style.transition = SPEED_NORMAL;
@@ -180,11 +177,11 @@ html_code = """
 
   function decideNextAction() {
     let delay = 1000;
-    const currentStage = document.getElementById(holes.find(h => h.id === currentHoleId).stageId);
 
     if (mode === 'HOLE') {
       // --- 穴モード ---
       const dice = Math.random();
+      const currentStage = document.getElementById(holes.find(h => h.id === currentHoleId).stageId);
 
       if (dice < 0.4) {
         // ①キョロキョロ
@@ -196,8 +193,7 @@ html_code = """
         // ②出てくる
         crab.style.top = POS_GROUND_Y;
         setTimeout(() => {
-          currentStage.style.overflow = 'visible'; // マスク解除
-          // 座標系を画面全体へ切り替え
+          currentStage.style.overflow = 'visible';
           const holeData = holes.find(h => h.id === currentHoleId);
           crab.style.top = `${holeData.y}%`;
           crab.style.left = `${holeData.x}%`;
@@ -215,7 +211,7 @@ html_code = """
     } else if (mode === 'BEACH') {
       // --- 砂浜モード ---
       const dice = Math.random();
-      crab.style.transition = SPEED_NORMAL; // 速度を戻す
+      crab.style.transition = SPEED_NORMAL;
 
       if (dice < 0.2) {
         // ①じっとする
@@ -248,57 +244,42 @@ html_code = """
     setTimeout(() => { crab.classList.remove('walking'); }, 3000);
   }
 
-  // いずれかの穴へゆっくり帰宅し、真上から入る処理
+  // いずれかの穴へゆっくり帰宅する
   function returnToAnyHole() {
     crab.classList.add('walking');
-    // ランダムにターゲットの穴を選ぶ
     const targetHole = holes[Math.floor(Math.random() * holes.length)];
     
     // 移動速度をゆっくりにする
     crab.style.transition = SPEED_SLOW;
     
-    // 1. ターゲットの穴の真上位置へ移動
+    // 1. ターゲットの穴の位置まで移動開始
     crab.style.left = `${targetHole.x}%`;
     crab.style.top = `${targetHole.y}%`;
 
-    // 移動完了後 (8秒後)
+    // 2. 移動完了を待つ（速度に合わせて時間を調整）
     setTimeout(() => {
-      // 2. 穴の真上に到着。歩きを止める。
       crab.classList.remove('walking');
       
-      // 3. 一瞬その場で停止して「着いた感」を出す (1秒待つ)
+      // 3. カニの所属ステージを変更し、座標系を切り替える
+      const targetStage = document.getElementById(targetHole.stageId);
+      targetStage.appendChild(crab);
+      
+      crab.style.transition = 'none'; // 一瞬アニメーションをオフ
+      crab.style.top = POS_GROUND_Y; // ステージの入り口へ
+      crab.style.left = '50%';
+      
+      // 4. マスクを有効化して穴モードへ
+      targetStage.style.overflow = 'hidden'; 
+      currentHoleId = targetHole.id;
+      mode = 'HOLE';
+      
+      // 5. 一呼吸おいて、潜るアニメーション開始
       setTimeout(() => {
-          const targetStage = document.getElementById(targetHole.stageId);
-
-          // 4. カニをターゲットのステージへ移動させる（所属変更）
-          targetStage.appendChild(crab);
-          
-          // 5. 座標系切り替え時のワープを防ぐため、アニメーションを一時オフ
-          crab.style.transition = 'none';
-          
-          // 6. カニの位置を「ステージ内の入り口（＝今までいた穴の真上）」に設定
-          crab.style.top = POS_GROUND_Y; 
-          crab.style.left = '50%';
-          
-          // 7. マスクを有効にして、穴モードへ移行
-          targetStage.style.overflow = 'hidden'; 
-          currentHoleId = targetHole.id;
-          mode = 'HOLE';
-          
-          // 8. わずかな時間をおいて、潜るアニメーションを開始
-          setTimeout(() => {
-              // アニメーション速度を通常に戻す
-              crab.style.transition = SPEED_NORMAL;
-              // 穴の底へ移動させる（これで潜るアニメーションが再生される）
-              crab.style.top = POS_HIDDEN_Y;
-
-              // 9. 潜り終わった後の次の行動を予約
-              setTimeout(decideNextAction, 2000);
-          }, 50); // transition:none の適用を待つための短い待機
-
-      }, 1000); // 穴の上での待機時間
-
-    }, 8000); // 砂浜移動時間
+          crab.style.transition = SPEED_NORMAL; // 速度を戻す
+          crab.style.top = POS_HIDDEN_Y; // 潜る
+          setTimeout(decideNextAction, 2000);
+      }, 100); 
+    }, 5000); // ★修正★ 移動時間に合わせて 5000ms 待つ
   }
 
 </script>
