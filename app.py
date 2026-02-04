@@ -1,12 +1,11 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
-# ページ設定（ワイドモードにして広々と！）
-st.set_page_config(page_title="カニカニ・ビーチ", layout="wide")
+# ページ設定（ワイドモード）
+st.set_page_config(page_title="カニカニ・ワイドビーチ", layout="wide")
 
-st.title("🏖️ 砂浜にカニが一匹…")
-st.write("広～い砂浜になったっち！貝殻も落ちてるね🐚")
-st.write("（カニさんは相変わらず穴の中に隠れてるみたい…じっと見てみてね🍄）")
+st.title("🏖️ どこまでも続く砂浜と、ちいさなカニ")
+st.write("砂浜をさらに拡張して、カニさんをミニサイズにしたっち！貝殻も増量中🐚")
 
 # CSSアートとアニメーションを含んだHTML
 html_code = """
@@ -17,8 +16,8 @@ html_code = """
   body {
     margin: 0;
     overflow: hidden;
-    background-color: #f6d7b0; /* 砂の色 */
-    /* 砂の粒々感を出すためのノイズ */
+    background-color: #f6d7b0;
+    /* 砂の質感を出すノイズ */
     background-image: 
       radial-gradient(circle at 50% 50%, #e6c288 1px, transparent 1px),
       radial-gradient(circle at 20% 80%, #dcb 1px, transparent 1px);
@@ -26,29 +25,37 @@ html_code = """
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 400px; /* 表示エリアの高さ */
+    height: 500px; /* 表示エリアの高さも少しアップ */
   }
 
-  /* ★広いフィールドの設定★
-     全体を大きく作って、transform: scale() でキュッと縮小して表示する作戦だっち！
-     こうすると、パーツの配置は大きな座標で考えられるから楽なんだっち。
+  /* ★超・広大なフィールド★
+     幅を1500pxまで拡張！
+     scale(0.5)で表示しているので、実質3000px分の広さが画面に収まってる感覚だっち。
   */
   .beach-scene {
     position: relative;
-    width: 1000px; /* 横に広ーく！ */
-    height: 400px;
-    transform: scale(0.5); /* 全体を0.5倍（小さめ）で表示 */
+    width: 1500px;  /* ① 描画範囲をかなり広くしたっち！ */
+    height: 800px;  /* 縦にも広く */
+    transform: scale(0.5); /* 全体を縮小して表示 */
     transform-origin: center center;
+    /* デバッグ用に枠線が見たい時はこれを有効にしてね */
+    /* border: 1px dashed rgba(0,0,0,0.1); */
   }
 
-  /* --- ここからカニ＆穴セット（中央配置） --- */
+  /* --- カニ＆穴セット --- */
   .crab-home {
     position: absolute;
-    bottom: 50px;
+    bottom: 200px; /* 広いフィールドの中央寄りに配置 */
     left: 50%;
-    transform: translateX(-50%);
+    /* ② カニと穴をさらに小さく！
+       scale(0.6) を追加して、元のサイズの60%にしたっち。
+       transform-origin で足元基準に縮小してるよ。
+    */
+    transform: translateX(-50%) scale(0.6); 
+    transform-origin: bottom center;
     width: 300px;
     height: 300px;
+    z-index: 20; /* 貝殻より手前に来るように */
   }
 
   /* 穴 */
@@ -59,13 +66,13 @@ html_code = """
     transform: translateX(-50%);
     width: 140px;
     height: 40px;
-    background-color: #4a3b2a; /* 砂浜に合わせて少し茶色っぽく */
+    background-color: #4a3b2a;
     border-radius: 50%;
     box-shadow: inset 0 5px 10px rgba(0,0,0,0.6);
     z-index: 10;
   }
 
-  /* カニさんが出入りするステージ（マスク用） */
+  /* カニステージ（マスク） */
   .crab-stage {
     position: absolute;
     bottom: 100px;
@@ -73,12 +80,12 @@ html_code = """
     transform: translateX(-50%);
     width: 200px;
     height: 300px;
-    overflow: hidden; /* 下にはみ出たら消える */
+    overflow: hidden;
     z-index: 11;
     pointer-events: none;
   }
 
-  /* カニ全体コンテナ */
+  /* カニコンテナ */
   .crab-container {
     position: absolute;
     top: 100%;
@@ -89,7 +96,7 @@ html_code = """
     animation: peekaboo 8s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
   }
 
-  /* カニのパーツ（前回と同じ） */
+  /* --- カニのパーツ（共通） --- */
   .body {
     position: absolute;
     bottom: 0;
@@ -114,59 +121,30 @@ html_code = """
   .leg { position: absolute; bottom: 10px; width: 20px; height: 5px; background-color: #c0392b; border-radius: 5px; }
   .leg.left { left: -10px; transform: rotate(-20deg); } .leg.right { right: -10px; transform: rotate(20deg); }
 
-
   /* --- 貝殻（CSSアート） --- */
   .shell {
     position: absolute;
     width: 40px;
     height: 35px;
-    background: repeating-linear-gradient(
-      90deg, 
-      #fff0f5 0px, 
-      #fff0f5 4px, 
-      #ffc1e3 5px, 
-      #ffc1e3 6px
-    );
-    border-radius: 50% 50% 10% 10%; /* 扇形 */
+    background: repeating-linear-gradient(90deg, #fff0f5 0px, #fff0f5 4px, #ffc1e3 5px, #ffc1e3 6px);
+    border-radius: 50% 50% 10% 10%;
     box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    z-index: 5;
   }
-  /* 貝殻の根本のちょぼ */
-  .shell::after {
-    content: '';
-    position: absolute;
-    bottom: -5px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 10px;
-    height: 6px;
-    background-color: #ffc1e3;
-    border-radius: 2px;
-  }
+  .shell::after { content: ''; position: absolute; bottom: -5px; left: 50%; transform: translateX(-50%); width: 10px; height: 6px; background-color: #ffc1e3; border-radius: 2px; }
 
-  /* 白い巻貝タイプ */
   .shell-spiral {
     position: absolute;
-    width: 0;
-    height: 0;
-    border-left: 10px solid transparent;
-    border-right: 10px solid transparent;
-    border-bottom: 40px solid #fff;
+    width: 0; height: 0;
+    border-left: 10px solid transparent; border-right: 10px solid transparent; border-bottom: 40px solid #fff;
     border-radius: 50%;
     transform: rotate(45deg);
     filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2));
+    z-index: 5;
   }
-  .shell-spiral::before {
-    content: '';
-    position: absolute;
-    top: 20px;
-    left: -10px;
-    width: 20px;
-    height: 20px;
-    background-color: #eee;
-    border-radius: 50%;
-  }
+  .shell-spiral::before { content: ''; position: absolute; top: 20px; left: -10px; width: 20px; height: 20px; background-color: #eee; border-radius: 50%; }
 
-  /* --- アニメーション --- */
+  /* アニメーション */
   @keyframes peekaboo {
     0% { top: 100%; } 10% { top: 100%; } 30% { top: 10px; } 35% { top: 20px; } 40% { top: 15px; } 65% { top: 15px; } 75% { top: 100%; } 100% { top: 100%; }
   }
@@ -181,10 +159,14 @@ html_code = """
 <div class="beach-scene">
   
   <div class="shell" style="top: 300px; left: 200px; transform: rotate(-20deg);"></div>
-  <div class="shell" style="top: 150px; left: 800px; transform: rotate(10deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 4px, #aee 5px, #aee 6px);"></div>
-  <div class="shell-spiral" style="top: 250px; left: 700px; transform: rotate(60deg);"></div>
-  <div class="shell-spiral" style="top: 100px; left: 150px; transform: rotate(-30deg);"></div>
-  <div class="shell" style="top: 350px; left: 600px; transform: rotate(180deg); opacity: 0.8;"></div>
+  <div class="shell" style="top: 150px; left: 900px; transform: rotate(10deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 4px, #aee 5px, #aee 6px);"></div>
+  <div class="shell-spiral" style="top: 500px; left: 1100px; transform: rotate(60deg);"></div>
+  <div class="shell-spiral" style="top: 100px; left: 350px; transform: rotate(-30deg);"></div>
+  <div class="shell" style="top: 450px; left: 600px; transform: rotate(180deg); opacity: 0.8;"></div>
+  
+  <div class="shell" style="top: 600px; left: 150px; transform: rotate(45deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 4px, #eec 5px, #eec 6px);"></div>
+  <div class="shell-spiral" style="top: 700px; left: 800px; transform: rotate(-90deg) scale(0.8);"></div>
+  <div class="shell" style="top: 250px; left: 1300px; transform: rotate(15deg) scale(1.2);"></div>
 
   <div class="crab-home">
     <div class="hole"></div>
@@ -212,4 +194,4 @@ html_code = """
 """
 
 # HTMLを描画
-components.html(html_code, height=450)
+components.html(html_code, height=500)
