@@ -1,160 +1,267 @@
 import streamlit as st
 import streamlit.components.v1 as components
 
+# ページ設定
 st.set_page_config(page_title="カニカニ・パーフェクトライフ最終版", layout="centered")
 
+# JavaScriptとCSSを組み合わせたHTML
 html_code = """
 <!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
+  /* スマホ画面全体の設定 */
   body {
     margin: 0;
     overflow: hidden;
     background-color: #f6d7b0;
-    background-image:
+    background-image: 
       radial-gradient(circle at 50% 50%, #e6c288 1px, transparent 1px),
       radial-gradient(circle at 20% 80%, #dcb 1px, transparent 1px);
     background-size: 20px 20px, 30px 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     height: 100vh;
     width: 100vw;
+    touch-action: none;
   }
 
+  /* フィールド */
   .beach-scene {
     position: relative;
     width: 100%;
     height: 100%;
     max-width: 430px;
     max-height: 932px;
-    margin: auto;
   }
 
-  /* ===== 穴ラッパー（基準点） ===== */
-  .hole-wrapper {
-    position: absolute;
-    left: 50%;
-    top: 85%;
-    transform: translate(-50%, -50%);
-    width: 120px;
-    height: 160px;
-    pointer-events: none;
-  }
-
+  /* 穴 */
   .hole {
     position: absolute;
-    top: 0;
+    top: 85%;
     left: 50%;
-    transform: translateX(-50%);
+    transform: translate(-50%, -50%);
     width: 70px;
     height: 20px;
     background-color: #4a3b2a;
     border-radius: 50%;
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
-    z-index: 30;
-  }
-
-  .crab-mask {
-    position: absolute;
-    top: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 80px;
-    height: 140px;
-    overflow: hidden;
+    /* ★修正★ カニより手前に表示して、カニを隠す！ */
     z-index: 20;
   }
 
+  /* カニが隠れるためのマスク領域（穴の下半分） */
+  .crab-mask {
+    position: absolute;
+    top: 85%; /* 穴の中心 */
+    left: 50%;
+    transform: translate(-50%, 0); /* 上端を穴の中心に合わせる */
+    width: 80px;
+    height: 100px; /* 下に伸ばす */
+    /* 初期状態は隠すモード */
+    overflow: hidden;
+    z-index: 10; /* 穴より後ろ */
+    pointer-events: none;
+    /* background: rgba(255,0,0,0.2); デバッグ用 */
+  }
+
+  /* カニコンテナ */
   .crab-container {
     position: absolute;
+    /* 初期位置：穴の奥底 */
+    top: 100px; 
     left: 50%;
-    transform: translateX(-50%);
     width: 50px;
     height: 40px;
-    transition: top 1.5s cubic-bezier(0.5,0,0.5,1), left 1.5s linear;
+    /* 足元基準 */
+    transform: translate(-50%, -100%);
+    transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear, transform 0.5s;
+    z-index: 15; /* マスクより前、穴より後ろ */
   }
 
-  /* ===== 状態 ===== */
-  .peeking { animation: peek 2s infinite alternate; }
+  /* --- アクション用クラス --- */
+  .crab-container.snipping .claw.left::after { animation: snip-left 0.2s infinite alternate; }
+  .crab-container.snipping .claw.right::after { animation: snip-right 0.2s infinite alternate; }
+  .crab-container.walking .leg.L1 { animation: walk-leg 0.3s infinite alternate; }
+  .crab-container.walking .leg.R1 { animation: walk-leg 0.3s infinite alternate 0.15s; }
+  .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
+  .crab-container.walking .leg.R2 { animation: walk-leg 0.3s infinite alternate; }
+  /* ★追加★ きょろきょろ */
+  .crab-container.peeking { animation: peek-and-look 2s infinite alternate; }
 
-  @keyframes peek {
-    0% { transform: translateX(-50%) rotate(0deg); }
-    50% { transform: translateX(-50%) rotate(-5deg); }
-    100% { transform: translateX(-50%) rotate(5deg); }
+
+  /* --- カニのパーツ --- */
+  .body { position: absolute; bottom: 0; width: 50px; height: 33px; background-color: #ff6b6b; border-radius: 50% 50% 40% 40%; border: 2px solid #c0392b; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); }
+  .eye-stalk { position: absolute; top: -8px; width: 3px; height: 10px; background-color: #c0392b; }
+  .eye-stalk.left { left: 12px; transform: rotate(-15deg); } .eye-stalk.right { right: 12px; transform: rotate(15deg); }
+  .eye { position: absolute; top: -10px; width: 8px; height: 8px; background-color: white; border-radius: 50%; border: 1px solid #c0392b; }
+  .eye::after { content: ''; position: absolute; top: 2px; left: 2px; width: 4px; height: 4px; background-color: black; border-radius: 50%; animation: blink 4s infinite; }
+  .eye.left { left: 9px; } .eye.right { right: 9px; }
+  .claw { position: absolute; top: 3px; width: 16px; height: 12px; border: 2px solid #c0392b; background-color: #ff6b6b; border-radius: 50% 50% 10% 10%; transform-origin: bottom center; }
+  .claw.left { left: -10px; transform: rotate(-30deg); } .claw.left::after { content: ''; position: absolute; top: -6px; left: 0; width: 10px; height: 12px; background-color: #ff6b6b; border: 2px solid #c0392b; border-radius: 50% 10% 0 0; transform: rotate(-20deg); transform-origin: bottom right; }
+  .claw.right { right: -10px; transform: rotate(30deg); } .claw.right::after { content: ''; position: absolute; top: -6px; right: 0; width: 10px; height: 12px; background-color: #ff6b6b; border: 2px solid #c0392b; border-radius: 10% 50% 0 0; transform: rotate(20deg); transform-origin: bottom left; }
+  .leg { position: absolute; bottom: 4px; width: 10px; height: 3px; background-color: #c0392b; border-radius: 3px; transform-origin: right center;}
+  .leg.left { transform-origin: right center; } .leg.right { transform-origin: left center; }
+  .leg.L1 { left: -8px; transform: rotate(-20deg); } .leg.L2 { left: -3px; bottom: 2px; transform: rotate(-10deg); }
+  .leg.R1 { right: -8px; transform: rotate(20deg); } .leg.R2 { right: -3px; bottom: 2px; transform: rotate(10deg); }
+
+  /* --- 貝殻 --- */
+  .shell { position: absolute; width: 18px; height: 15px; background: repeating-linear-gradient(90deg, #fff0f5 0px, #fff0f5 2px, #ffc1e3 3px, #ffc1e3 4px); border-radius: 50% 50% 10% 10%; box-shadow: 1px 1px 3px rgba(0,0,0,0.2); z-index: 5; }
+  .shell::after { content: ''; position: absolute; bottom: -2px; left: 50%; transform: translateX(-50%); width: 4px; height: 3px; background-color: #ffc1e3; border-radius: 2px; }
+  .shell-spiral { position: absolute; width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-bottom: 18px solid #fff; border-radius: 50%; transform: rotate(45deg); filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2)); z-index: 5; }
+  .shell-spiral::before { content: ''; position: absolute; top: 9px; left: -4px; width: 8px; height: 8px; background-color: #eee; border-radius: 50%; }
+
+  /* --- アニメーション定義 --- */
+  @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
+  @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
+  @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
+  @keyframes walk-leg { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
+  /* ★追加★ きょろきょろアニメーション */
+  @keyframes peek-and-look {
+    0% { transform: translate(-50%, -100%) rotate(0deg); }
+    25% { transform: translate(-50%, -100%) rotate(-5deg); }
+    50% { transform: translate(-50%, -100%) rotate(0deg); }
+    75% { transform: translate(-50%, -100%) rotate(5deg); }
+    100% { transform: translate(-50%, -100%) rotate(0deg); }
   }
-
-  /* ===== カニ ===== */
-  .body { position: absolute; bottom: 0; width: 50px; height: 33px; background:#ff6b6b;
-    border-radius:50% 50% 40% 40%; border:2px solid #c0392b; }
-  .eye { position:absolute; top:-10px; width:8px; height:8px; background:white;
-    border-radius:50%; border:1px solid #c0392b; }
-  .eye.left { left:9px; } .eye.right { right:9px; }
-
 </style>
 </head>
 <body>
 
 <div class="beach-scene">
+  <div class="shell" style="top: 20%; left: 15%; transform: rotate(-20deg);"></div>
+  <div class="shell" style="top: 10%; left: 75%; transform: rotate(10deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 2px, #aee 3px, #aee 4px);"></div>
+  <div class="shell-spiral" style="top: 40%; left: 85%; transform: rotate(60deg);"></div>
+  <div class="shell-spiral" style="top: 5%; left: 30%; transform: rotate(-30deg);"></div>
+  <div class="shell" style="top: 30%; left: 50%; transform: rotate(180deg); opacity: 0.8;"></div>
+  <div class="shell" style="top: 55%; left: 10%; transform: rotate(45deg); background: repeating-linear-gradient(90deg, #fff 0px, #fff 2px, #eec 3px, #eec 4px);"></div>
+  <div class="shell-spiral" style="top: 65%; left: 70%; transform: rotate(-90deg) scale(0.8);"></div>
 
-  <div class="hole-wrapper" id="hole">
-    <div class="hole"></div>
-    <div class="crab-mask" id="mask">
-      <div class="crab-container" id="crab">
-        <div class="body"></div>
-        <div class="eye left"></div>
-        <div class="eye right"></div>
-      </div>
+  <div class="hole"></div>
+    
+  <div id="mask" class="crab-mask">
+    <div id="crab" class="crab-container">
+      <div class="leg left L1"></div><div class="leg right R1"></div>
+      <div class="leg left L2"></div><div class="leg right R2"></div>
+      <div class="claw left"></div><div class="claw right"></div>
+      <div class="body"></div>
+      <div class="eye-stalk left"></div><div class="eye-stalk right"></div>
+      <div class="eye left"></div><div class="eye right"></div>
     </div>
   </div>
-
 </div>
 
 <script>
-  const crab = document.getElementById("crab");
-  const mask = document.getElementById("mask");
+  const crab = document.getElementById('crab');
+  const mask = document.getElementById('mask');
+  
+  let mode = 'HOLE';
+  const HOLE_X = 50; // %
+  const HOLE_Y = 85; // %
 
-  const HIDDEN = "110px";
-  const PEEK   = "45px";
-  const EXIT   = "0px";
+  // マスク内での位置 (px)
+  const POS_HIDDEN_Y = '100px'; // 完全に隠れる
+  const POS_PEEK_Y   = '35px';  // 目だけ出す（きょろきょろ用）
+  const POS_ENTRANCE_Y = '0px';   // 穴の入り口（マスクの上端）
 
-  let mode = "HOLE";
+  setTimeout(decideNextAction, 1000);
 
-  function next() {
-    if (mode === "HOLE") {
-      const r = Math.random();
-      if (r < 0.4) {
-        crab.style.top = PEEK;
-        crab.classList.add("peeking");
-        setTimeout(() => {
-          crab.classList.remove("peeking");
-          crab.style.top = HIDDEN;
-          next();
+  function decideNextAction() {
+    let delay = 1000;
+
+    if (mode === 'HOLE') {
+      const dice = Math.random();
+      if (dice < 0.4) {
+        // ★追加★ 目だけきょろきょろ
+        crab.style.top = POS_PEEK_Y;
+        crab.classList.add('peeking'); // きょろきょろ開始
+        delay = 3000;
+        setTimeout(() => { 
+            crab.classList.remove('peeking'); // きょろきょろ終了
+            if(mode==='HOLE') crab.style.top = POS_HIDDEN_Y; 
         }, 2500);
-      } else {
-        crab.style.top = EXIT;
+      } else if (dice < 0.7) {
+        // 出てくる
+        crab.style.top = POS_ENTRANCE_Y;
         setTimeout(() => {
-          mask.style.overflow = "visible";
-          crab.style.top = "-60px";
-          mode = "BEACH";
-          next();
+          mask.style.overflow = 'visible'; // マスク解除
+          crab.style.top = `${HOLE_Y}%`;
+          crab.style.left = `${HOLE_X}%`;
+          mode = 'BEACH';
+          decideNextAction(); 
         }, 1500);
+        return;
+      } else {
+        // 隠れる
+        crab.style.top = POS_HIDDEN_Y;
+        delay = 2000;
       }
-    } else {
-      setTimeout(() => {
-        mask.style.overflow = "hidden";
-        crab.style.top = HIDDEN;
-        mode = "HOLE";
-        next();
-      }, 3000);
+    } else if (mode === 'BEACH') {
+      const dice = Math.random();
+      if (dice < 0.2) {
+        // じっとする
+        delay = 1000 + Math.random() * 1500;
+      } else if (dice < 0.6) {
+        // ランダム移動
+        moveRandom();
+        delay = 3500;
+      } else if (dice < 0.8) {
+        // チョキチョキ
+        crab.classList.add('snipping');
+        delay = 1500;
+        setTimeout(() => { crab.classList.remove('snipping'); }, delay);
+      } else {
+        // 帰宅
+        returnHome();
+        return; 
+      }
     }
+    setTimeout(decideNextAction, delay);
   }
 
-  crab.style.top = HIDDEN;
-  setTimeout(next, 1000);
-</script>
+  // 全方向ランダム移動
+  function moveRandom() {
+    crab.classList.add('walking');
+    const targetX = 5 + Math.random() * 90; 
+    const targetY = 5 + Math.random() * 80; 
+    crab.style.left = `${targetX}%`;
+    crab.style.top = `${targetY}%`;
+    setTimeout(() => {
+        crab.classList.remove('walking');
+    }, 3000);
+  }
 
+  // ★修正★ 帰宅アクション（穴の上から入る）
+  function returnHome() {
+    crab.classList.add('walking');
+    // 1. 穴の真上（入り口）まで歩く
+    crab.style.left = `${HOLE_X}%`;
+    crab.style.top = `${HOLE_Y}%`;
+
+    setTimeout(() => {
+      crab.classList.remove('walking');
+      
+      // 2. 座標系をマスク内に戻す（見た目変わらず）
+      crab.style.left = '50%'; 
+      crab.style.top = POS_ENTRANCE_Y; 
+      
+      // 3. マスクを有効化
+      mask.style.overflow = 'hidden'; 
+      mode = 'HOLE';
+      
+      // 4. 一呼吸おいて、穴の奥へ潜る
+      setTimeout(() => {
+          crab.style.top = POS_HIDDEN_Y; 
+          setTimeout(decideNextAction, 2000);
+      }, 500); 
+    }, 3000);
+  }
+</script>
 </body>
 </html>
 """
 
+# HTMLを描画
 components.html(html_code, height=932)
