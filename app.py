@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニとヤドカリたちの賑やかな浜辺", layout="centered")
+st.set_page_config(page_title="カニとたくさんのヤドカリたち", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -74,8 +74,6 @@ html_code = """
     width: 40px;
     height: 35px;
     z-index: 15;
-    /* ★修正★ 反転を削除して、デフォルトの左向きにする */
-    /* transform: scaleX(-1); */ 
   }
   
   /* ヤドカリの体（共通） */
@@ -92,16 +90,16 @@ html_code = """
   .hermit-container.walking .hermit-leg { animation: hermit-walk 0.5s infinite alternate; }
   .hermit-container.walking .hermit-shell-base { animation: hermit-bob 0.5s infinite alternate; }
   @keyframes hermit-walk { from { transform: rotate(-10deg); } to { transform: rotate(20deg); } }
-  /* 向きを元に戻したのでbobアニメーションも元に戻す */
-  @keyframes hermit-bob { from { transform: rotate(0deg) translateY(0); } to { transform: rotate(0deg) translateY(-1px); } }
+  @keyframes hermit-bob { from { transform: translateY(0); } to { transform: translateY(-1px); } }
 
 
-  /* --- ★貝殻の種類（3パターン）★ --- */
+  /* --- ★貝殻の種類（3パターン） - 位置を背中側（右）へ修正★ --- */
   .hermit-shell-base { position: absolute; z-index: 2; filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.2)); }
 
-  /* タイプA: 青い巻貝（位置を微調整） */
+  /* タイプA: 青い巻貝 */
   .hermit-shell-base.type-A {
-    top: -18px; left: 2px; /* 左寄りに配置 */
+    top: -18px;
+    left: 18px; /* ★修正★ 右側へずらす */
     width: 0; height: 0;
     border-left: 8px solid transparent; border-right: 8px solid transparent; border-bottom: 35px solid #6fa3ef;
     border-radius: 40%;
@@ -111,7 +109,8 @@ html_code = """
 
   /* タイプB: 赤い渦巻き貝 */
   .hermit-shell-base.type-B {
-    top: -22px; left: 5px;
+    top: -22px;
+    left: 20px; /* ★修正★ 右側へずらす */
     width: 30px; height: 30px;
     background: conic-gradient(from 0deg, #e74c3c, #c0392b, #e74c3c);
     border-radius: 50%;
@@ -121,7 +120,8 @@ html_code = """
 
   /* タイプC: 白い長細い貝 */
   .hermit-shell-base.type-C {
-    top: -25px; left: 8px;
+    top: -25px;
+    left: 22px; /* ★修正★ 右側へずらす */
     width: 12px; height: 40px;
     background-color: #f0f0f0;
     border-radius: 50% 50% 10% 10%;
@@ -211,25 +211,35 @@ html_code = """
   /* --- ★追加★ ヤドカリさんのロジック（動的生成・複数管理） --- */
   const beachScene = document.querySelector('.beach-scene');
   let activeHermits = 0; // 現在のヤドカリ数
-  const MAX_HERMITS = 2; // 最大出現数
+  const MAX_HERMITS = 5; // ★修正★ 最大出現数を5匹に変更
 
   // ヤドカリライフ開始
-  setTimeout(startHermitLoop, 5000);
+  setTimeout(startHermitLoop, 3000); // 開始を少し早めた
 
   function startHermitLoop() {
-    const nextCheckTime = 5000 + Math.random() * 5000; // 5〜10秒後
+    // 次の出現チェックまでの時間（短めにして賑やかに）
+    const nextCheckTime = 3000 + Math.random() * 4000; // 3〜7秒後
+    
+    // 最大数未満なら出現させる
     if (activeHermits < MAX_HERMITS) {
         spawnHermit();
     }
+    
+    // 次のループを予約
     setTimeout(startHermitLoop, nextCheckTime);
   }
 
   function spawnHermit() {
-    activeHermits++;
+    activeHermits++; // カウントアップ
+
+    // DOM要素を作成
     const hermit = document.createElement('div');
     hermit.classList.add('hermit-container');
+    
+    // 貝殻の種類をランダム決定
     const shellTypes = ['type-A', 'type-B', 'type-C'];
     const selectedType = shellTypes[Math.floor(Math.random() * shellTypes.length)];
+
     hermit.innerHTML = `
       <div class="hermit-shell-base ${selectedType}"></div>
       <div class="hermit-body">
@@ -239,26 +249,28 @@ html_code = """
     `;
     beachScene.appendChild(hermit);
 
+    // 出現位置（Y軸ランダム）
     const spawnY = 10 + Math.random() * 70; 
     hermit.style.top = `${spawnY}%`;
-    // ★修正★ 初期位置を右外に設定
-    hermit.style.left = '115%'; 
+    hermit.style.left = '115%'; // 初期位置（右外）
 
+    // 移動開始
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         hermit.classList.add('walking');
-        const duration = 20 + Math.random() * 15;
+        // 移動速度をランダムに（20秒〜40秒）
+        const duration = 20 + Math.random() * 20;
         hermit.style.transition = `left ${duration}s linear`;
-        // ★修正★ 移動先を左外に設定
-        hermit.style.left = '-15%'; 
+        hermit.style.left = '-15%'; // 移動先（左外）
       });
     });
 
+    // 画面外に出たら削除
     hermit.addEventListener('transitionend', () => {
         if (hermit.parentNode) {
             hermit.parentNode.removeChild(hermit);
         }
-        activeHermits--;
+        activeHermits--; // カウントダウン
     });
   }
 
