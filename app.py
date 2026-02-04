@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・複数穴ライフ修正版", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクト複数穴ライフ", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -51,7 +51,7 @@ html_code = """
   /* 各穴の位置 */
   #hole1 { top: 60%; left: 25%; } /* 左上 */
   #hole2 { top: 40%; left: 75%; } /* 右上 */
-  #hole3 { bottom: 150px; left: 50%; } /* 下中央（初期穴・完璧な位置） */
+  #hole3 { bottom: 150px; left: 50%; } /* 下中央（完璧な穴） */
 
   /* --- カニステージ（マスク用・共通スタイル） --- */
   .crab-stage {
@@ -62,21 +62,18 @@ html_code = """
     overflow: hidden;
     z-index: 11;
     pointer-events: none;
-    /* border: 1px solid red; デバッグ用 */
   }
-  /* ★修正ポイント★
-     真ん中の穴（#stage3）は、穴の位置より9px上に配置されています（bottom指定なので+9px）。
-     左右の穴も同様に、穴の位置より9px上に配置されるよう修正します。
-     top指定の場合は、数値を小さくすることで上に行きます。
-  */
-  #stage1 { top: calc(60% - 9px); left: 25%; } /* 修正: +9px から -9px へ */
-  #stage2 { top: calc(40% - 9px); left: 75%; } /* 修正: +9px から -9px へ */
-  #stage3 { bottom: 159px; left: 50%; } /* 完璧な位置（bottom: 150px + 9px） */
+  /* ★修正★ 各ステージの位置（中央の穴と同じ関係性になるように計算式を修正！） */
+  /* top指定の場合は、穴より少し上にするために数値を引く必要があるっち */
+  #stage1 { top: calc(60% - 9px); left: 25%; } 
+  #stage2 { top: calc(40% - 9px); left: 75%; }
+  /* bottom指定の場合は、穴より少し上にするために数値を足す（これは元通り完璧） */
+  #stage3 { bottom: 159px; left: 50%; }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    top: 100px; /* 初期位置 */
+    top: 100px; /* 初期位置：穴の奥 */
     left: 50%;
     width: 50px;
     height: 40px;
@@ -152,27 +149,25 @@ html_code = """
 <script>
   const crab = document.getElementById('crab');
   
-  // 穴のデータ（位置%と対応するステージID）
+  // 穴のデータ
   const holes = [
-    { id: 1, x: 25, y: 60, stageId: 'stage1' }, // 左上
-    { id: 2, x: 75, y: 40, stageId: 'stage2' }, // 右上
-    { id: 3, x: 50, y: 85, stageId: 'stage3' }  // 下中央 (初期)
+    { id: 1, x: 25, y: 60, stageId: 'stage1' },
+    { id: 2, x: 75, y: 40, stageId: 'stage2' },
+    { id: 3, x: 50, y: 85, stageId: 'stage3' } 
   ];
   let currentHoleId = 3; // 現在のホーム穴ID
 
   let mode = 'HOLE';
 
-  // 穴の中での相対位置 (px)
+  // 穴の中での相対位置 (px) - 完璧な位置関係を維持！
   const POS_HIDDEN_Y = '100px'; 
   const POS_PEEK_Y   = '60px'; 
   const POS_GROUND_Y = '20px';  
 
-  // 通常の移動速度
+  // 移動速度定義
   const SPEED_NORMAL = 'top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear';
-  // 穴への移動速度（ゆっくり）
   const SPEED_SLOW = 'top 8s linear, left 8s linear';
 
-  // 初期設定
   crab.style.transition = SPEED_NORMAL;
 
   setTimeout(decideNextAction, 1000);
@@ -195,8 +190,7 @@ html_code = """
         // ②出てくる
         crab.style.top = POS_GROUND_Y;
         setTimeout(() => {
-          currentStage.style.overflow = 'visible'; // マスク解除
-          // 座標系を画面全体へ切り替え
+          currentStage.style.overflow = 'visible'; 
           const holeData = holes.find(h => h.id === currentHoleId);
           crab.style.top = `${holeData.y}%`;
           crab.style.left = `${holeData.x}%`;
@@ -214,7 +208,7 @@ html_code = """
     } else if (mode === 'BEACH') {
       // --- 砂浜モード ---
       const dice = Math.random();
-      crab.style.transition = SPEED_NORMAL; // 速度を戻す
+      crab.style.transition = SPEED_NORMAL;
 
       if (dice < 0.2) {
         // ①じっとする
@@ -247,44 +241,46 @@ html_code = """
     setTimeout(() => { crab.classList.remove('walking'); }, 3000);
   }
 
-  // いずれかの穴へゆっくり帰宅する
+  // ★修正★ いずれかの穴へゆっくり帰宅する処理
   function returnToAnyHole() {
     crab.classList.add('walking');
-    // ランダムにターゲットの穴を選ぶ
     const targetHole = holes[Math.floor(Math.random() * holes.length)];
     
-    // 移動速度をゆっくりにする
+    // 1. ターゲットの穴へ向かってゆっくり移動開始
     crab.style.transition = SPEED_SLOW;
-    
-    // ターゲットの穴の位置へ移動
     crab.style.left = `${targetHole.x}%`;
     crab.style.top = `${targetHole.y}%`;
 
-    // 移動完了後 (時間がかかるので待ち時間を長く設定)
+    // 2. 移動完了後の処理（8秒後）
     setTimeout(() => {
-      crab.classList.remove('walking');
-      
-      // 1. カニの所属ステージを変更する
-      const targetStage = document.getElementById(targetHole.stageId);
-      targetStage.appendChild(crab);
-      
-      // 2. 速度設定を一時的に無効化して座標系を切り替える
-      crab.style.transition = 'none'; 
-      crab.style.top = POS_GROUND_Y; 
-      crab.style.left = '50%';
-      
-      // 3. マスクを有効化して、現在の穴IDを更新
-      targetStage.style.overflow = 'hidden'; 
-      currentHoleId = targetHole.id;
-      mode = 'HOLE';
-      
-      // 4. 一呼吸おいて、速度設定を戻して潜る
+      crab.classList.remove('walking'); // 歩き終了
+
+      // ★ここが重要★ 穴の上で一呼吸おく（1秒待機）
       setTimeout(() => {
-          crab.style.transition = SPEED_NORMAL;
-          crab.style.top = POS_HIDDEN_Y; 
-          setTimeout(decideNextAction, 2000);
-      }, 100); 
-    }, 8000); // 移動時間に合わせて待つ
+          // 3. ステージ移動と座標系の切り替え（瞬間的に行う）
+          const targetStage = document.getElementById(targetHole.stageId);
+          targetStage.appendChild(crab); // カニを新しいステージへ移動
+
+          // transitionを一時的に無効化して座標をリセット
+          crab.style.transition = 'none';
+          crab.style.top = POS_GROUND_Y; // 穴の入り口
+          crab.style.left = '50%';       // 中央
+
+          // マスク有効化、状態更新
+          targetStage.style.overflow = 'hidden'; 
+          currentHoleId = targetHole.id;
+          mode = 'HOLE';
+          
+          // 4. 潜るアニメーション開始
+          // transitionの設定反映のためにわずかに待つ
+          setTimeout(() => {
+              crab.style.transition = SPEED_NORMAL; // 速度を戻す
+              crab.style.top = POS_HIDDEN_Y;        // 潜る
+              setTimeout(decideNextAction, 2000);   // 次のループへ
+          }, 50); // 50msで十分
+      }, 1000); // 穴の上で1秒待機
+
+    }, 8000); // 移動にかかる時間
   }
 
 </script>
