@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニと謎の生き物（絶対ズレない版）", layout="centered")
+st.set_page_config(page_title="カニと謎の生き物（捕獲・絶対固定版）", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -213,17 +213,15 @@ html_code = """
   }
 
 
-  /* --- ★謎の生き物ロジック（ズレない修正版） --- */
+  /* --- ★謎の生き物ロジック（ズレ対策・強制停止版） --- */
   const beachScene = document.querySelector('.beach-scene');
   let activeHermits = 0; 
   const MAX_HERMITS = 5; 
 
-  // ドラッグ管理変数
+  // ドラッグ管理
   let draggedHermit = null;
-  let startMouseX = 0;
-  let startMouseY = 0;
-  let initialLeft = 0;
-  let initialTop = 0;
+  let shiftX = 0; // タップ位置と要素左上のズレ
+  let shiftY = 0;
 
   document.addEventListener('mousemove', onDragMove);
   document.addEventListener('mouseup', onDragEnd);
@@ -297,7 +295,7 @@ html_code = """
       }
   }
 
-  /* --- ドラッグ処理（ズレない Delta方式） --- */
+  /* --- ドラッグ処理（修正ポイント！） --- */
 
   function onDragStart(e) {
     if(e.cancelable) e.preventDefault();
@@ -308,25 +306,31 @@ html_code = """
     draggedHermit = hermit;
     draggedHermit.isCaught = true;
 
-    // 1. 移動アニメーションを停止
+    // 1. 移動アニメーションを「即座に」停止
     draggedHermit.style.transition = 'none';
-
-    // 2. ブラウザが計算している「今の正確な位置(px)」を取得して固定する
-    // これにより、%指定からpx指定へスムーズに移行できる（ズレない！）
-    const computedStyle = window.getComputedStyle(draggedHermit);
-    initialLeft = parseFloat(computedStyle.left);
-    initialTop = parseFloat(computedStyle.top);
     
-    draggedHermit.style.left = `${initialLeft}px`;
-    draggedHermit.style.top = `${initialTop}px`;
+    // 重要：ブラウザにスタイル変更を強制適用させる（リフロー）
+    void draggedHermit.offsetWidth; 
 
-    // 3. マウスの開始位置を記録
+    // 2. ブラウザが認識している「現在の見た目の位置（矩形）」を取得
+    const rect = draggedHermit.getBoundingClientRect();
+    const parentRect = beachScene.getBoundingClientRect();
+
+    // 3. 親要素基準のピクセル座標に固定し直す
+    // これでアニメーション中の % 指定から、現在の px 指定に切り替わる
+    const currentLeft = rect.left - parentRect.left;
+    const currentTop = rect.top - parentRect.top;
+    
+    draggedHermit.style.left = `${currentLeft}px`;
+    draggedHermit.style.top = `${currentTop}px`;
+
+    // 4. マウス位置と要素のズレ（吸着点）を計算
     const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
-    startMouseX = clientX;
-    startMouseY = clientY;
+    
+    shiftX = clientX - rect.left;
+    shiftY = clientY - rect.top;
 
-    // 4. 焦り演出
     startPanic(draggedHermit);
   }
 
@@ -337,13 +341,14 @@ html_code = """
     const clientX = e.type.includes('mouse') ? e.clientX : e.touches[0].clientX;
     const clientY = e.type.includes('mouse') ? e.clientY : e.touches[0].clientY;
 
-    // 移動量（デルタ）を計算
-    const dx = clientX - startMouseX;
-    const dy = clientY - startMouseY;
+    const parentRect = beachScene.getBoundingClientRect();
 
-    // 初期位置に移動量を足す（指に完全に吸い付く！）
-    draggedHermit.style.left = `${initialLeft + dx}px`;
-    draggedHermit.style.top  = `${initialTop + dy}px`;
+    // 新しい位置 = (マウス位置 - コンテナ位置) - 最初のズレ
+    const newLeft = (clientX - parentRect.left) - shiftX;
+    const newTop = (clientY - parentRect.top) - shiftY;
+
+    draggedHermit.style.left = `${newLeft}px`;
+    draggedHermit.style.top = `${newTop}px`;
   }
 
   function onDragEnd(e) {
@@ -381,20 +386,21 @@ html_code = """
     hermit.classList.add('running'); 
 
     // 現在位置(px)を取得
+    // style.leftには '123px' が入っているはず
     const currentLeft = parseFloat(hermit.style.left);
     const parentWidth = beachScene.clientWidth;
     
-    // 左右どちらに近いか判定して逃げる
     let targetLeft;
     if (currentLeft < parentWidth / 2) {
         targetLeft = -100;
-        hermit.classList.remove('walking-right'); // 左向き
+        hermit.classList.remove('walking-right');
     } else {
         targetLeft = parentWidth + 100;
-        hermit.classList.add('walking-right'); // 右向き
+        hermit.classList.add('walking-right');
     }
 
     requestAnimationFrame(() => {
+        // 再びtransitionを有効化して逃走
         hermit.style.transition = 'left 0.5s ease-in'; 
         hermit.style.left = `${targetLeft}px`;
     });
