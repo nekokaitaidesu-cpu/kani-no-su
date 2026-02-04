@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・複数穴ライフ", layout="centered")
+st.set_page_config(page_title="カニカニ・複数穴ライフ修正版", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -48,10 +48,10 @@ html_code = """
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
     z-index: 10;
   }
-  /* 各穴の位置（画像参照） */
+  /* 各穴の位置 */
   #hole1 { top: 60%; left: 25%; } /* 左上 */
   #hole2 { top: 40%; left: 75%; } /* 右上 */
-  #hole3 { bottom: 150px; left: 50%; } /* 下中央（初期穴） */
+  #hole3 { bottom: 150px; left: 50%; } /* 下中央（初期穴・完璧な位置） */
 
   /* --- カニステージ（マスク用・共通スタイル） --- */
   .crab-stage {
@@ -64,10 +64,14 @@ html_code = """
     pointer-events: none;
     /* border: 1px solid red; デバッグ用 */
   }
-  /* 各ステージの位置（穴に合わせる、微調整含む） */
-  #stage1 { top: calc(60% + 9px); left: 25%; }
-  #stage2 { top: calc(40% + 9px); left: 75%; }
-  #stage3 { bottom: 159px; left: 50%; } /* */
+  /* ★修正ポイント★
+     真ん中の穴（#stage3）は、穴の位置より9px上に配置されています（bottom指定なので+9px）。
+     左右の穴も同様に、穴の位置より9px上に配置されるよう修正します。
+     top指定の場合は、数値を小さくすることで上に行きます。
+  */
+  #stage1 { top: calc(60% - 9px); left: 25%; } /* 修正: +9px から -9px へ */
+  #stage2 { top: calc(40% - 9px); left: 75%; } /* 修正: +9px から -9px へ */
+  #stage3 { bottom: 159px; left: 50%; } /* 完璧な位置（bottom: 150px + 9px） */
 
   /* カニコンテナ */
   .crab-container {
@@ -77,7 +81,6 @@ html_code = """
     width: 50px;
     height: 40px;
     margin-left: -25px;
-    /* transitionはJSで動的に制御するため、ここでは基本設定のみ */
     z-index: 20;
   }
 
@@ -159,7 +162,7 @@ html_code = """
 
   let mode = 'HOLE';
 
-  // 穴の中での相対位置 (px) - 維持する
+  // 穴の中での相対位置 (px)
   const POS_HIDDEN_Y = '100px'; 
   const POS_PEEK_Y   = '60px'; 
   const POS_GROUND_Y = '20px';  
@@ -261,7 +264,7 @@ html_code = """
     setTimeout(() => {
       crab.classList.remove('walking');
       
-      // 1. カニの所属ステージを変更する（重要！）
+      // 1. カニの所属ステージを変更する
       const targetStage = document.getElementById(targetHole.stageId);
       targetStage.appendChild(crab);
       
