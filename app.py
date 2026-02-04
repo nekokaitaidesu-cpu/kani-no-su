@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="ミニカニ・ライフ修正版", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクトライフ", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -37,7 +37,7 @@ html_code = """
     max-height: 932px;
   }
 
-  /* 穴 */
+  /* 穴（中心基準） */
   .hole {
     position: absolute;
     top: 85%;
@@ -56,23 +56,30 @@ html_code = """
     position: absolute;
     top: 85%;
     left: 50%;
-    transform: translate(-50%, -50%);
+    transform: translate(-50%, -50%); /* ここも中心基準 */
     width: 80px;
-    height: 80px;
+    height: 100px; /* 少し縦長にして隠れるスペース確保 */
     overflow: hidden;
     z-index: 11;
     pointer-events: none;
+    /* border: 1px solid rgba(0,0,0,0.1); デバッグ用 */
   }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* 初期位置を深く修正！ */
-    top: 120px; 
+    /* ★修正★ 初期位置（隠れてる状態） */
+    top: 150%; 
     left: 50%;
     width: 50px;
     height: 40px;
-    margin-left: -25px;
+    
+    /* ★超重要修正★ 
+       これで座標(top, left)が「カニの中心」になる！
+       穴とのズレはこれで解消するはずカニ！ 
+    */
+    transform: translate(-50%, -50%);
+    
     transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear;
     z-index: 20;
   }
@@ -80,6 +87,8 @@ html_code = """
   /* --- アクション用クラス --- */
   .crab-container.snipping .claw.left::after { animation: snip-left 0.2s infinite alternate; }
   .crab-container.snipping .claw.right::after { animation: snip-right 0.2s infinite alternate; }
+  
+  /* 歩き：足パタパタ */
   .crab-container.walking .leg.L1 { animation: walk-leg 0.3s infinite alternate; }
   .crab-container.walking .leg.R1 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
@@ -143,13 +152,15 @@ html_code = """
   const stage = document.getElementById('stage');
   
   let mode = 'HOLE';
-  const HOLE_X = 50;
-  const HOLE_Y = 85;
+  const HOLE_X = 50; // %
+  const HOLE_Y = 85; // %
 
-  // ★修正★ 隠れる位置を深くしたっち！
-  const POS_HIDDEN_Y = '120px'; // 80px -> 120px に変更してしっかり隠す！
-  const POS_PEEK_Y   = '50px';
-  const POS_GROUND_Y = '10px';
+  // ★座標修正★
+  // ステージ内での位置も「中心基準」で考えるように数値を調整したっち。
+  // ステージは高さ100px。top:50%が中央。
+  const POS_HIDDEN_Y = '150%'; // 完全に下へ隠れる
+  const POS_PEEK_Y   = '80%';  // チラ見え
+  const POS_GROUND_Y = '50%';  // 穴の出口（ステージの中央＝画面の85%の位置）
 
   setTimeout(decideNextAction, 1000);
 
@@ -168,6 +179,7 @@ html_code = """
         crab.style.top = POS_GROUND_Y;
         setTimeout(() => {
           stage.style.overflow = 'visible';
+          // 座標系切り替え：この瞬間、見た目の位置は変わらないはず
           crab.style.top = `${HOLE_Y}%`;
           crab.style.left = `${HOLE_X}%`;
           mode = 'BEACH';
@@ -185,7 +197,7 @@ html_code = """
         // じっとする
         delay = 1000 + Math.random() * 1500;
       } else if (dice < 0.6) {
-        // ランダム移動（遠くも含む！）
+        // ランダム移動
         moveRandom();
         delay = 3500;
       } else if (dice < 0.8) {
@@ -202,12 +214,15 @@ html_code = """
     setTimeout(decideNextAction, delay);
   }
 
-  // 全方向ランダム移動（イメージ通りの動きになってるよ！）
+  // 全方向ランダム移動
   function moveRandom() {
     crab.classList.add('walking');
-    // 画面全体(5%~95%)からランダムに目的地を選ぶ
-    const targetX = 5 + Math.random() * 90; 
-    const targetY = 5 + Math.random() * 90; 
+    
+    // ★修正★
+    // 範囲を少し広げて、特に上方向(Y=0近く)へ行きやすくしたっち。
+    // スマホの上部はタイトルバー等があるかもだけど、2%まで攻める！
+    const targetX = 5 + Math.random() * 90; // 5% ~ 95%
+    const targetY = 2 + Math.random() * 85; // 2% ~ 87% (穴より上ならどこでも)
 
     crab.style.left = `${targetX}%`;
     crab.style.top = `${targetY}%`;
@@ -220,18 +235,23 @@ html_code = """
   // 帰宅アクション
   function returnHome() {
     crab.classList.add('walking');
+    // まず穴の真上（85%）に戻る
+    // translate(-50%, -50%)のおかげで、これでドンピシャの位置に来るはず！
     crab.style.left = `${HOLE_X}%`;
     crab.style.top = `${HOLE_Y}%`;
 
     setTimeout(() => {
       crab.classList.remove('walking');
-      crab.style.left = '50%';
-      crab.style.top = POS_GROUND_Y;
+      
+      // 座標切り替え（見た目の変化なし）
+      crab.style.left = '50%'; // ステージ内の左右中央
+      crab.style.top = POS_GROUND_Y; // ステージ内の上下中央
+      
       stage.style.overflow = 'hidden'; 
       mode = 'HOLE';
       
       setTimeout(() => {
-          crab.style.top = POS_HIDDEN_Y; 
+          crab.style.top = POS_HIDDEN_Y; // 潜る
           setTimeout(decideNextAction, 2000);
       }, 100); 
     }, 3000);
