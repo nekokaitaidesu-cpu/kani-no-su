@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニと謎の生き物とチンアナゴ", layout="centered")
+st.set_page_config(page_title="カニと謎の生き物（ツンツン逃走版）", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -25,7 +25,7 @@ html_code = """
     align-items: center;
     height: 100vh;
     width: 100vw;
-    touch-action: none;
+    touch-action: manipulation; /* タップ操作を最適化 */
     user-select: none;
     -webkit-user-select: none;
   }
@@ -69,87 +69,74 @@ html_code = """
   .shell-spiral { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 25px solid #fff; border-radius: 50%; transform: rotate(45deg); filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2)); z-index: 5; }
   .shell-spiral::before { content: ''; position: absolute; top: 12px; left: -6px; width: 12px; height: 12px; background-color: #eee; border-radius: 50%; }
 
-  /* --- 謎の生き物 --- */
-  .hermit-container { position: absolute; width: 40px; height: 35px; z-index: 15; cursor: pointer; -webkit-tap-highlight-color: transparent; }
-  .hermit-container:active { cursor: grabbing; }
-  .hermit-container.walking-right { transform: scaleX(-1); }
-  .hermit-body { position: absolute; bottom: 0; left: 10px; width: 25px; height: 15px; background-color: #ffccbc; border-radius: 50% 50% 20% 20%; border: 1px solid #e64a19; z-index: 1; }
+  /* --- ★謎の生き物★ --- */
+  .hermit-container {
+    position: absolute;
+    width: 40px;
+    height: 35px;
+    z-index: 15;
+    cursor: pointer; /* 指カーソル */
+    /* タップ時のハイライトを消す */
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* 右向き */
+  .hermit-container.walking-right {
+    transform: scaleX(-1);
+  }
+  
+  .hermit-body {
+    position: absolute; bottom: 0; left: 10px; width: 25px; height: 15px; background-color: #ffccbc; border-radius: 50% 50% 20% 20%; border: 1px solid #e64a19; z-index: 1;
+  }
   .hermit-eye { position: absolute; top: -8px; width: 4px; height: 4px; background-color: white; border: 1px solid #e64a19; border-radius: 50%; }
   .hermit-eye::after { content: ''; position: absolute; top: 1px; left: 1px; width: 2px; height: 2px; background-color: black; border-radius: 50%; }
   .hermit-eye.left { left: 5px; } .hermit-eye.right { right: 5px; }
   .hermit-leg { position: absolute; bottom: -2px; width: 8px; height: 3px; background-color: #e64a19; border-radius: 2px; }
   .hermit-leg.L1 { left: 0px; transform: rotate(-10deg); } .hermit-leg.L2 { left: 5px; transform: rotate(10deg); } .hermit-leg.L3 { left: 15px; transform: rotate(10deg); }
+  
+  /* 通常歩行 */
   .hermit-container.walking .hermit-leg { animation: hermit-walk 0.5s infinite alternate; }
   .hermit-container.walking .hermit-body { animation: hermit-bob 0.5s infinite alternate; }
-  .hermit-container.struggling .hermit-leg { animation: hermit-panic 0.05s infinite alternate; }
-  .hermit-container.struggling .hermit-body { animation: hermit-shake 0.05s infinite alternate; }
-  .hermit-container.running .hermit-leg { animation: hermit-panic 0.05s infinite alternate; }
-  .hermit-container.running .hermit-body { animation: hermit-bob 0.1s infinite alternate; }
-  .sweat { position: absolute; font-size: 20px; pointer-events: none; z-index: 30; animation: sweat-pop 0.6s linear forwards; }
 
-  /* --- ★追加★ チンアナゴ --- */
-  .eel-wrapper {
-    position: absolute;
-    width: 30px;
-    height: 80px;
-    z-index: 9; /* カニ(20)や生き物(15)より後ろ、背景(5)より前 */
-    overflow: hidden; /* 地面に埋まる表現用 */
-    pointer-events: none; /* タップの邪魔をしない */
+  /* ★焦り（タップ時） - 超高速バタバタ */
+  .hermit-container.struggling .hermit-leg {
+    animation: hermit-panic 0.05s infinite alternate; 
   }
-  
-  .eel-body {
-    position: absolute;
-    bottom: -80px; /* 初期状態は埋まってる */
-    left: 50%;
-    width: 14px;
-    height: 70px;
-    background-color: #fdfdfd;
-    border: 1px solid #ccc;
-    border-radius: 10px 10px 0 0;
-    transform-origin: bottom center;
-    transform: translateX(-50%);
-    /* ぬるぬる動くためのトランジション */
-    transition: bottom 0.5s ease-out, transform 1s ease-in-out; 
-  }
-  
-  /* 模様（黒い点） */
-  .eel-spot {
-    position: absolute;
-    left: 50%;
-    width: 4px;
-    height: 4px;
-    background-color: #333;
-    border-radius: 50%;
-    transform: translateX(-50%);
-  }
-  
-  /* 目 */
-  .eel-eye {
-    position: absolute;
-    top: 5px;
-    width: 3px;
-    height: 3px;
-    background-color: #000;
-    border-radius: 50%;
-  }
-  .eel-eye.left { left: 2px; }
-  .eel-eye.right { right: 2px; }
-
-  /* ゆらゆらアニメーション（ぼーっとしてる時） */
-  @keyframes eel-sway {
-    0% { transform: translateX(-50%) rotate(-3deg); }
-    100% { transform: translateX(-50%) rotate(3deg); }
-  }
-  .eel-body.swaying {
-    animation: eel-sway 2s infinite alternate ease-in-out;
+  /* 焦ってプルプル */
+  .hermit-container.struggling .hermit-body {
+    animation: hermit-shake 0.05s infinite alternate;
   }
 
-  /* その他のアニメーション定義 */
+  /* ★全力逃走 */
+  .hermit-container.running .hermit-leg {
+    animation: hermit-panic 0.05s infinite alternate;
+  }
+  .hermit-container.running .hermit-body {
+    animation: hermit-bob 0.1s infinite alternate;
+  }
+
+  /* 汗エフェクト */
+  .sweat {
+    position: absolute;
+    font-size: 20px;
+    pointer-events: none;
+    z-index: 30;
+    animation: sweat-pop 0.6s linear forwards;
+  }
+
   @keyframes hermit-walk { from { transform: rotate(-10deg); } to { transform: rotate(20deg); } }
   @keyframes hermit-bob { from { transform: translateY(0); } to { transform: translateY(-1px); } }
+  
   @keyframes hermit-panic { from { transform: rotate(-30deg); } to { transform: rotate(30deg); } }
   @keyframes hermit-shake { from { transform: translateX(-2px) rotate(-5deg); } to { transform: translateX(2px) rotate(5deg); } }
-  @keyframes sweat-pop { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: translate(20px, -40px) scale(0); opacity: 0; } }
+  
+  @keyframes sweat-pop {
+    0% { transform: translate(0, 0) scale(0.5); opacity: 1; }
+    50% { transform: translate(10px, -20px) scale(1.2); opacity: 0.8; }
+    100% { transform: translate(20px, -40px) scale(0); opacity: 0; }
+  }
+
+  /* 既存アニメーション */
   @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
   @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
@@ -183,7 +170,7 @@ html_code = """
 </div>
 
 <script>
-  // === 共通・カニ関連 ===
+  /* --- メインのカニ（そのまま） --- */
   const crab = document.getElementById('crab');
   const stage = document.getElementById('stage');
   let mode = 'HOLE';
@@ -226,7 +213,7 @@ html_code = """
   }
 
 
-  // === 謎の生き物（ツンツン逃走版） ===
+  /* --- ★謎の生き物ロジック（ツンツン逃走版） --- */
   const beachScene = document.querySelector('.beach-scene');
   let activeHermits = 0; 
   const MAX_HERMITS = 5; 
@@ -245,6 +232,7 @@ html_code = """
     activeHermits++;
     const hermit = document.createElement('div');
     hermit.classList.add('hermit-container');
+    
     hermit.innerHTML = `
       <div class="hermit-body">
           <div class="hermit-eye left"></div><div class="hermit-eye right"></div>
@@ -252,15 +240,24 @@ html_code = """
       </div>
     `;
     beachScene.appendChild(hermit);
+
+    // ★重要★ タップ/クリックイベント
+    // touchstart も入れることでスマホでの反応を良くする
     hermit.addEventListener('click', onTapHermit);
     hermit.addEventListener('touchstart', onTapHermit, {passive: true});
 
     const spawnY = 10 + Math.random() * 70; 
     hermit.style.top = `${spawnY}%`;
+
     const startFromRight = Math.random() < 0.5;
     let startLeft, endLeft;
-    if (startFromRight) { startLeft = '115%'; endLeft = '-15%'; } 
-    else { startLeft = '-15%'; endLeft = '115%'; hermit.classList.add('walking-right'); }
+
+    if (startFromRight) {
+        startLeft = '115%'; endLeft = '-15%';
+    } else {
+        startLeft = '-15%'; endLeft = '115%';
+        hermit.classList.add('walking-right');
+    }
     hermit.style.left = startLeft;
 
     requestAnimationFrame(() => {
@@ -273,8 +270,12 @@ html_code = """
     });
 
     hermit.addEventListener('transitionend', () => {
-        if (!hermit.isEscaping) removeHermit(hermit);
-        if (hermit.isEscaping) removeHermit(hermit);
+        if (!hermit.isEscaping) {
+             removeHermit(hermit);
+        }
+        if (hermit.isEscaping) {
+             removeHermit(hermit);
+        }
     });
   }
 
@@ -286,28 +287,46 @@ html_code = """
       }
   }
 
+  /* --- タップされた時の処理 --- */
   function onTapHermit(e) {
     const hermit = e.currentTarget;
-    if (hermit.isEscaping) return;
+    if (hermit.isEscaping) return; // 既に逃走中なら無視
+
+    // 1. 移動を強制停止して「今の場所」に固定する
+    // window.getComputedStyle を使うことで、見た目の場所にピタッと止まる！
     const computedStyle = window.getComputedStyle(hermit);
-    const currentLeft = computedStyle.left;
+    const currentLeft = computedStyle.left; // 例: "123.45px"
+    
     hermit.style.transition = 'none';
     hermit.style.left = currentLeft;
-    hermit.isEscaping = true;
+    
+    // 2. 焦り演出（パニック）
+    hermit.isEscaping = true; // フラグ立てる
     startPanic(hermit);
-    setTimeout(() => { stopPanic(hermit); escapeRun(hermit); }, 500);
+
+    // 3. 一瞬（0.5秒）その場で焦った後、逃走開始
+    setTimeout(() => {
+        stopPanic(hermit); // 汗などは止めるが、逃げる時は別のクラスをつける
+        escapeRun(hermit);
+    }, 500);
   }
 
+  /* --- 演出関連 --- */
   function startPanic(hermit) {
     hermit.classList.remove('walking');
     hermit.classList.add('struggling'); 
+    
+    // 汗を出す
     createSweat(hermit);
     hermit.sweatInterval = setInterval(() => { createSweat(hermit); }, 150); 
   }
+
   function stopPanic(hermit) {
+    // strugglingクラスは外して、逃げるモーションへ
     hermit.classList.remove('struggling');
     if (hermit.sweatInterval) clearInterval(hermit.sweatInterval);
   }
+
   function createSweat(hermit) {
     const sweat = document.createElement('div');
     sweat.innerText = '💦';
@@ -318,138 +337,29 @@ html_code = """
     hermit.appendChild(sweat);
     setTimeout(() => { if(sweat.parentNode) sweat.parentNode.removeChild(sweat); }, 600);
   }
+
   function escapeRun(hermit) {
-    hermit.classList.add('running'); 
+    hermit.classList.add('running'); // 逃走用モーション（足高速）
+
+    // 現在位置(px)
     const currentLeft = parseFloat(hermit.style.left);
     const parentWidth = beachScene.clientWidth;
+    
     let targetLeft;
-    if (currentLeft < parentWidth / 2) { targetLeft = -100; hermit.classList.remove('walking-right'); } 
-    else { targetLeft = parentWidth + 100; hermit.classList.add('walking-right'); }
+    // 画面中央より左なら左へ、右なら右へ逃げる
+    if (currentLeft < parentWidth / 2) {
+        targetLeft = -100; // 左外
+        hermit.classList.remove('walking-right'); // 左向き
+    } else {
+        targetLeft = parentWidth + 100; // 右外
+        hermit.classList.add('walking-right'); // 右向き
+    }
+
     requestAnimationFrame(() => {
+        // 加速して逃げる
         hermit.style.transition = 'left 0.5s ease-in'; 
         hermit.style.left = `${targetLeft}px`;
     });
-  }
-
-
-  /* --- ★追加★ チンアナゴロジック --- */
-  let activeEels = 0;
-  const MAX_EELS = 2;
-
-  setTimeout(startEelLoop, 1000);
-
-  function startEelLoop() {
-    // スポーンチェック
-    if (activeEels < MAX_EELS) {
-        if (Math.random() < 0.6) { // 60%の確率で出現試行
-            spawnEel();
-        }
-    }
-    // 次回のチェック（頻度は低め）
-    const nextCheck = 5000 + Math.random() * 5000;
-    setTimeout(startEelLoop, nextCheck);
-  }
-
-  function spawnEel() {
-    // 位置決定（カニの穴周辺を避ける）
-    // カニ穴中心: x=50%, y=85%
-    // 簡易的に穴から遠い場所を選ぶ
-    let x, y;
-    let safe = false;
-    for(let i=0; i<10; i++) {
-        x = 5 + Math.random() * 90; 
-        y = 50 + Math.random() * 40; // 画面下半分に出現
-        // 穴からの距離チェック（簡易）
-        const dx = x - 50;
-        const dy = y - 85;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        if (dist > 20) { // 穴から20%以上離れているか
-            safe = true;
-            break;
-        }
-    }
-    if (!safe) return; // 場所が決まらなければ今回は見送り
-
-    activeEels++;
-    const eelWrapper = document.createElement('div');
-    eelWrapper.classList.add('eel-wrapper');
-    eelWrapper.style.left = `${x}%`;
-    eelWrapper.style.top = `${y}%`;
-
-    const eelBody = document.createElement('div');
-    eelBody.classList.add('eel-body');
-    // 中身（目と模様）
-    eelBody.innerHTML = `
-      <div class="eel-eye left"></div><div class="eel-eye right"></div>
-      <div class="eel-spot" style="top: 20px;"></div>
-      <div class="eel-spot" style="top: 40px;"></div>
-      <div class="eel-spot" style="top: 60px;"></div>
-    `;
-    eelWrapper.appendChild(eelBody);
-    beachScene.appendChild(eelWrapper);
-
-    // ニョキッと出現
-    requestAnimationFrame(() => {
-        eelBody.style.bottom = '0px'; // 地面から出る
-        startEelBehavior(eelBody, eelWrapper);
-    });
-  }
-
-  function startEelBehavior(eel, wrapper) {
-    // 行動ループ
-    const actions = ['sway', 'look-left', 'look-right'];
-    
-    function nextAction() {
-        // もしDOMから消えてたら終了
-        if (!wrapper.parentNode) return;
-
-        // 帰る判定（20%の確率）
-        if (Math.random() < 0.2) {
-            goHome(eel, wrapper);
-            return;
-        }
-
-        const action = actions[Math.floor(Math.random() * actions.length)];
-        
-        // クラスとスタイルをリセット
-        eel.classList.remove('swaying');
-        eel.style.transform = 'translateX(-50%) rotate(0deg)'; // 基本位置
-
-        if (action === 'sway') {
-            // ぼーっとする
-            eel.classList.add('swaying');
-        } else if (action === 'look-left') {
-            // 左を向く（ぬるっと）
-            eel.style.transform = 'translateX(-50%) skewX(15deg) rotate(-20deg)';
-        } else if (action === 'look-right') {
-            // 右を向く（ぬるっと）
-            eel.style.transform = 'translateX(-50%) skewX(-15deg) rotate(20deg)';
-        }
-
-        // 次の行動までの時間
-        const duration = 2000 + Math.random() * 3000;
-        setTimeout(nextAction, duration);
-    }
-    
-    setTimeout(nextAction, 1000);
-  }
-
-  function goHome(eel, wrapper) {
-      // クラスリセット
-      eel.classList.remove('swaying');
-      eel.style.transform = 'translateX(-50%) rotate(0deg)'; // まっすぐにしてから
-      
-      // 引っ込む
-      setTimeout(() => {
-          eel.style.bottom = '-80px';
-          // アニメーション完了後に削除
-          eel.addEventListener('transitionend', () => {
-              if (wrapper.parentNode) {
-                  wrapper.parentNode.removeChild(wrapper);
-                  activeEels--;
-              }
-          }, {once: true});
-      }, 500);
   }
 
 </script>
