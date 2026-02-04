@@ -48,37 +48,32 @@ html_code = """
     background-color: #4a3b2a;
     border-radius: 50%;
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
-    /* ★修正★ カニより手前に表示して、カニを隠す！ */
     z-index: 20;
   }
 
   /* カニが隠れるためのマスク領域（穴の下半分） */
   .crab-mask {
     position: absolute;
-    top: 85%; /* 穴の中心 */
+    top: 85%;
     left: 50%;
-    transform: translate(-50%, 0); /* 上端を穴の中心に合わせる */
+    transform: translate(-50%, -50%);
     width: 80px;
-    height: 100px; /* 下に伸ばす */
-    /* 初期状態は隠すモード */
+    height: 120px;
     overflow: hidden;
-    z-index: 10; /* 穴より後ろ */
+    z-index: 10;
     pointer-events: none;
-    /* background: rgba(255,0,0,0.2); デバッグ用 */
   }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* 初期位置：穴の奥底 */
-    top: 100px; 
+    top: 100px;
     left: 50%;
     width: 50px;
     height: 40px;
-    /* 足元基準 */
-    transform: translate(-50%, -100%);
+    transform: translate(-50%, 0);
     transition: top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear, transform 0.5s;
-    z-index: 15; /* マスクより前、穴より後ろ */
+    z-index: 15;
   }
 
   /* --- アクション用クラス --- */
@@ -88,9 +83,7 @@ html_code = """
   .crab-container.walking .leg.R1 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.R2 { animation: walk-leg 0.3s infinite alternate; }
-  /* ★追加★ きょろきょろ */
   .crab-container.peeking { animation: peek-and-look 2s infinite alternate; }
-
 
   /* --- カニのパーツ --- */
   .body { position: absolute; bottom: 0; width: 50px; height: 33px; background-color: #ff6b6b; border-radius: 50% 50% 40% 40%; border: 2px solid #c0392b; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); }
@@ -118,13 +111,12 @@ html_code = """
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
   @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
   @keyframes walk-leg { from { transform: rotate(-10deg); } to { transform: rotate(10deg); } }
-  /* ★追加★ きょろきょろアニメーション */
   @keyframes peek-and-look {
-    0% { transform: translate(-50%, -100%) rotate(0deg); }
-    25% { transform: translate(-50%, -100%) rotate(-5deg); }
-    50% { transform: translate(-50%, -100%) rotate(0deg); }
-    75% { transform: translate(-50%, -100%) rotate(5deg); }
-    100% { transform: translate(-50%, -100%) rotate(0deg); }
+    0% { transform: translate(-50%, 0) rotate(0deg); }
+    25% { transform: translate(-50%, 0) rotate(-5deg); }
+    50% { transform: translate(-50%, 0) rotate(0deg); }
+    75% { transform: translate(-50%, 0) rotate(5deg); }
+    100% { transform: translate(-50%, 0) rotate(0deg); }
   }
 </style>
 </head>
@@ -158,13 +150,12 @@ html_code = """
   const mask = document.getElementById('mask');
   
   let mode = 'HOLE';
-  const HOLE_X = 50; // %
-  const HOLE_Y = 85; // %
+  const HOLE_X = 50;
+  const HOLE_Y = 85;
 
-  // マスク内での位置 (px)
-  const POS_HIDDEN_Y = '100px'; // 完全に隠れる
-  const POS_PEEK_Y   = '35px';  // 目だけ出す（きょろきょろ用）
-  const POS_ENTRANCE_Y = '0px';   // 穴の入り口（マスクの上端）
+  const POS_HIDDEN_Y = '100px';
+  const POS_PEEK_Y   = '30px';
+  const POS_ENTRANCE_Y = '0px';
 
   setTimeout(decideNextAction, 1000);
 
@@ -174,46 +165,40 @@ html_code = """
     if (mode === 'HOLE') {
       const dice = Math.random();
       if (dice < 0.4) {
-        // ★追加★ 目だけきょろきょろ
         crab.style.top = POS_PEEK_Y;
-        crab.classList.add('peeking'); // きょろきょろ開始
+        crab.classList.add('peeking');
         delay = 3000;
         setTimeout(() => { 
-            crab.classList.remove('peeking'); // きょろきょろ終了
+            crab.classList.remove('peeking');
             if(mode==='HOLE') crab.style.top = POS_HIDDEN_Y; 
         }, 2500);
       } else if (dice < 0.7) {
-        // 出てくる
         crab.style.top = POS_ENTRANCE_Y;
         setTimeout(() => {
-          mask.style.overflow = 'visible'; // マスク解除
+          mask.style.overflow = 'visible';
           crab.style.top = `${HOLE_Y}%`;
           crab.style.left = `${HOLE_X}%`;
+          crab.style.transform = 'translate(-50%, -100%)';
           mode = 'BEACH';
           decideNextAction(); 
         }, 1500);
         return;
       } else {
-        // 隠れる
         crab.style.top = POS_HIDDEN_Y;
         delay = 2000;
       }
     } else if (mode === 'BEACH') {
       const dice = Math.random();
       if (dice < 0.2) {
-        // じっとする
         delay = 1000 + Math.random() * 1500;
       } else if (dice < 0.6) {
-        // ランダム移動
         moveRandom();
         delay = 3500;
       } else if (dice < 0.8) {
-        // チョキチョキ
         crab.classList.add('snipping');
         delay = 1500;
         setTimeout(() => { crab.classList.remove('snipping'); }, delay);
       } else {
-        // 帰宅
         returnHome();
         return; 
       }
@@ -221,7 +206,6 @@ html_code = """
     setTimeout(decideNextAction, delay);
   }
 
-  // 全方向ランダム移動
   function moveRandom() {
     crab.classList.add('walking');
     const targetX = 5 + Math.random() * 90; 
@@ -233,25 +217,21 @@ html_code = """
     }, 3000);
   }
 
-  // ★修正★ 帰宅アクション（穴の上から入る）
   function returnHome() {
     crab.classList.add('walking');
-    // 1. 穴の真上（入り口）まで歩く
     crab.style.left = `${HOLE_X}%`;
     crab.style.top = `${HOLE_Y}%`;
 
     setTimeout(() => {
       crab.classList.remove('walking');
       
-      // 2. 座標系をマスク内に戻す（見た目変わらず）
       crab.style.left = '50%'; 
-      crab.style.top = POS_ENTRANCE_Y; 
+      crab.style.top = POS_ENTRANCE_Y;
+      crab.style.transform = 'translate(-50%, 0)';
       
-      // 3. マスクを有効化
       mask.style.overflow = 'hidden'; 
       mode = 'HOLE';
       
-      // 4. 一呼吸おいて、穴の奥へ潜る
       setTimeout(() => {
           crab.style.top = POS_HIDDEN_Y; 
           setTimeout(decideNextAction, 2000);
