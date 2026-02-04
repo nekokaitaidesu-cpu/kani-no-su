@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニカニ・パーフェクト複数穴", layout="centered")
+st.set_page_config(page_title="カニカニ・パーフェクトワールド", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -40,7 +40,7 @@ html_code = """
   /* --- 穴（共通スタイル） --- */
   .hole {
     position: absolute;
-    transform: translate(-50%, -50%); /* 中心合わせ */
+    transform: translateX(-50%);
     width: 60px;
     height: 18px;
     background-color: #4a3b2a;
@@ -48,31 +48,32 @@ html_code = """
     box-shadow: inset 0 3px 6px rgba(0,0,0,0.6);
     z-index: 10;
   }
-  /* ★修正★ 各穴の位置を top/left % で統一し、ステージと完全に一致させる */
-  #hole1 { top: 30%; left: 20%; } /* 左上 */
-  #hole2 { top: 30%; left: 80%; } /* 右上 */
-  #hole3 { top: 85%; left: 50%; } /* 下中央（元の位置） */
+  /* 各穴の位置 */
+  #hole1 { top: 60%; left: 25%; } /* 左上 */
+  #hole2 { top: 40%; left: 75%; } /* 右上 */
+  #hole3 { bottom: 150px; left: 50%; } /* 下中央（真ん中の穴：絶対維持） */
 
   /* --- カニステージ（マスク用・共通スタイル） --- */
   .crab-stage {
     position: absolute;
-    transform: translate(-50%, -50%); /* 中心合わせ */
     width: 80px;
     height: 100px;
-    overflow: hidden;
+    overflow: hidden; /* 初期状態はマスク有効 */
     z-index: 11;
     pointer-events: none;
     /* background: rgba(255,0,0,0.2); デバッグ用 */
   }
-  /* ★修正★ ステージの位置を対応する穴と全く同じにする！これでズレない！ */
-  #stage1 { top: 30%; left: 20%; }
-  #stage2 { top: 30%; left: 80%; }
-  #stage3 { top: 85%; left: 50%; }
+  /* 各ステージの位置 */
+  /* 左右の穴は、穴の中心座標とステージの中心を合わせることで位置ズレを解消 */
+  #stage1 { top: 60%; left: 25%; transform: translate(-50%, -50%); }
+  #stage2 { top: 40%; left: 75%; transform: translate(-50%, -50%); }
+  /* 真ん中のステージは元の設定を完全に維持 */
+  #stage3 { bottom: 159px; left: 50%; transform: translateX(-50%); }
 
   /* カニコンテナ */
   .crab-container {
     position: absolute;
-    /* 初期位置：穴の奥底 */
+    /* ステージ内での初期位置（POS_HIDDEN_Yと同じ） */
     top: 100px; 
     left: 50%;
     width: 50px;
@@ -90,7 +91,7 @@ html_code = """
   .crab-container.walking .leg.L2 { animation: walk-leg 0.3s infinite alternate 0.15s; }
   .crab-container.walking .leg.R2 { animation: walk-leg 0.3s infinite alternate; }
 
-  /* --- カニのパーツ --- */
+  /* --- カニのパーツ（変更なし） --- */
   .body { position: absolute; bottom: 0; width: 50px; height: 33px; background-color: #ff6b6b; border-radius: 50% 50% 40% 40%; border: 2px solid #c0392b; box-shadow: inset -2px -2px 5px rgba(0,0,0,0.1); }
   .eye-stalk { position: absolute; top: -8px; width: 3px; height: 10px; background-color: #c0392b; transition: transform 0.3s; }
   .eye-stalk.left { left: 12px; transform: rotate(-15deg); } .eye-stalk.right { right: 12px; transform: rotate(15deg); }
@@ -105,13 +106,13 @@ html_code = """
   .leg.L1 { left: -8px; transform: rotate(-20deg); } .leg.L2 { left: -3px; bottom: 2px; transform: rotate(-10deg); }
   .leg.R1 { right: -8px; transform: rotate(20deg); } .leg.R2 { right: -3px; bottom: 2px; transform: rotate(10deg); }
 
-  /* --- 貝殻 --- */
+  /* --- 貝殻（変更なし） --- */
   .shell { position: absolute; width: 25px; height: 20px; background: repeating-linear-gradient(90deg, #fff0f5 0px, #fff0f5 2px, #ffc1e3 3px, #ffc1e3 4px); border-radius: 50% 50% 10% 10%; box-shadow: 1px 1px 3px rgba(0,0,0,0.2); z-index: 5; }
   .shell::after { content: ''; position: absolute; bottom: -3px; left: 50%; transform: translateX(-50%); width: 6px; height: 4px; background-color: #ffc1e3; border-radius: 2px; }
   .shell-spiral { position: absolute; width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-bottom: 25px solid #fff; border-radius: 50%; transform: rotate(45deg); filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.2)); z-index: 5; }
   .shell-spiral::before { content: ''; position: absolute; top: 12px; left: -6px; width: 12px; height: 12px; background-color: #eee; border-radius: 50%; }
 
-  /* --- アニメーション定義 --- */
+  /* --- アニメーション定義（変更なし） --- */
   @keyframes snip-left { from { transform: rotate(-10deg); } to { transform: rotate(-40deg); } }
   @keyframes snip-right { from { transform: rotate(10deg); } to { transform: rotate(40deg); } }
   @keyframes blink { 0%, 96%, 100% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } }
@@ -150,24 +151,26 @@ html_code = """
 <script>
   const crab = document.getElementById('crab');
   
-  // 穴のデータ（位置%と対応するステージID）CSSと合わせる
+  // 穴のデータ（位置%と対応するステージID）
+  // 左右の穴はステージの中心座標と一致させる
+  // 真ん中の穴(id:3)のy座標は、bottom:150pxのおおよその位置
   const holes = [
-    { id: 1, x: 20, y: 30, stageId: 'stage1' }, // 左上
-    { id: 2, x: 80, y: 30, stageId: 'stage2' }, // 右上
-    { id: 3, x: 50, y: 85, stageId: 'stage3' }  // 下中央 (初期)
+    { id: 1, x: 25, y: 60, stageId: 'stage1' }, 
+    { id: 2, x: 75, y: 40, stageId: 'stage2' }, 
+    { id: 3, x: 50, y: 85, stageId: 'stage3' } 
   ];
-  let currentHoleId = 3; // 現在のホーム穴ID
+  let currentHoleId = 3; // 初期は真ん中の穴
 
   let mode = 'HOLE';
 
-  // 穴の中での相対位置 (px) - 今の状態を維持！
+  // 穴の中での相対位置 (px) - 維持する
   const POS_HIDDEN_Y = '100px'; 
   const POS_PEEK_Y   = '60px'; 
   const POS_GROUND_Y = '20px';  
 
   // 通常の移動速度
   const SPEED_NORMAL = 'top 1.5s cubic-bezier(0.5, 0, 0.5, 1), left 1.5s linear';
-  // 穴への移動速度（ゆっくりじーっと眺められる速度）
+  // 穴への移動速度（ゆっくり）
   const SPEED_SLOW = 'top 8s linear, left 8s linear';
 
   // 初期設定
@@ -177,11 +180,11 @@ html_code = """
 
   function decideNextAction() {
     let delay = 1000;
+    const currentStage = document.getElementById(holes.find(h => h.id === currentHoleId).stageId);
 
     if (mode === 'HOLE') {
       // --- 穴モード ---
       const dice = Math.random();
-      const currentStage = document.getElementById(holes.find(h => h.id === currentHoleId).stageId);
 
       if (dice < 0.4) {
         // ①キョロキョロ
@@ -245,7 +248,7 @@ html_code = """
     setTimeout(() => { crab.classList.remove('walking'); }, 3000);
   }
 
-  // ★修正★ いずれかの穴へゆっくり帰宅し、自然に入る
+  // いずれかの穴へゆっくり帰宅し、真上から入る処理
   function returnToAnyHole() {
     crab.classList.add('walking');
     // ランダムにターゲットの穴を選ぶ
@@ -254,37 +257,48 @@ html_code = """
     // 移動速度をゆっくりにする
     crab.style.transition = SPEED_SLOW;
     
-    // 1. まずターゲットの穴の真上まで移動する
+    // 1. ターゲットの穴の真上位置へ移動
     crab.style.left = `${targetHole.x}%`;
     crab.style.top = `${targetHole.y}%`;
 
     // 移動完了後 (8秒後)
     setTimeout(() => {
+      // 2. 穴の真上に到着。歩きを止める。
       crab.classList.remove('walking');
       
-      // 2. カニの所属ステージを変更する（重要！）
-      const targetStage = document.getElementById(targetHole.stageId);
-      targetStage.appendChild(crab);
-      
-      // 3. 一瞬アニメーションをオフにして、座標系をステージ内に切り替える
-      // これで「位置飛び」を防ぐ！
-      crab.style.transition = 'none'; 
-      crab.style.top = POS_GROUND_Y; // 穴の入り口位置
-      crab.style.left = '50%';       // ステージ中央
-      
-      // 4. マスクを有効化して、現在の穴IDを更新
-      targetStage.style.overflow = 'hidden'; 
-      currentHoleId = targetHole.id;
-      mode = 'HOLE';
-      
-      // 5. 一呼吸おいて、アニメーションをオンに戻し、潜る動作を開始
+      // 3. 一瞬その場で停止して「着いた感」を出す (1秒待つ)
       setTimeout(() => {
-          crab.style.transition = SPEED_NORMAL; // 速度を戻す
-          crab.style.top = POS_HIDDEN_Y; // 潜る
-          setTimeout(decideNextAction, 2000); // 次の行動へ
-      }, 100); // わずかな時間差を作る
+          const targetStage = document.getElementById(targetHole.stageId);
 
-    }, 8000); // 移動時間に合わせて待つ
+          // 4. カニをターゲットのステージへ移動させる（所属変更）
+          targetStage.appendChild(crab);
+          
+          // 5. 座標系切り替え時のワープを防ぐため、アニメーションを一時オフ
+          crab.style.transition = 'none';
+          
+          // 6. カニの位置を「ステージ内の入り口（＝今までいた穴の真上）」に設定
+          crab.style.top = POS_GROUND_Y; 
+          crab.style.left = '50%';
+          
+          // 7. マスクを有効にして、穴モードへ移行
+          targetStage.style.overflow = 'hidden'; 
+          currentHoleId = targetHole.id;
+          mode = 'HOLE';
+          
+          // 8. わずかな時間をおいて、潜るアニメーションを開始
+          setTimeout(() => {
+              // アニメーション速度を通常に戻す
+              crab.style.transition = SPEED_NORMAL;
+              // 穴の底へ移動させる（これで潜るアニメーションが再生される）
+              crab.style.top = POS_HIDDEN_Y;
+
+              // 9. 潜り終わった後の次の行動を予約
+              setTimeout(decideNextAction, 2000);
+          }, 50); // transition:none の適用を待つための短い待機
+
+      }, 1000); // 穴の上での待機時間
+
+    }, 8000); // 砂浜移動時間
   }
 
 </script>
