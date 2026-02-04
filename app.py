@@ -2,7 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 # ページ設定
-st.set_page_config(page_title="カニと謎の生き物（ツンツン逃走版）", layout="centered")
+st.set_page_config(page_title="カニと謎の生き物", layout="centered")
 
 # JavaScriptとCSSを組み合わせたHTML
 html_code = """
@@ -368,4 +368,4 @@ html_code = """
 """
 
 # HTMLを描画
-components.html(html_code, height=932)
+components.html(html_code, height=800)
